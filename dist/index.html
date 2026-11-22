@@ -1,0 +1,1698 @@
+<title>Lantern Drift II: The Borrowed Dawn</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one full-height stage. The world is the page; dialogue and HUD float over it. Single dark look by design. */
+:root {
+  --night: #07060d;
+  --panel: #100d1cf0;
+  --line: #ffffff24;
+  --ember: #ffd98a;
+  --ember-deep: #e3913b;
+  --ink: #f3eeff;
+  --muted: #a8a0c6;
+  --cold: #a9d8ff;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --voice: "Cormorant Garamond", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--night); color: var(--ink); font-family: var(--mono); margin: 0; box-sizing: border-box; overflow: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px; }
+.stage { position: relative; height: 100%; border-radius: 12px; overflow: hidden; background: var(--night); box-shadow: 0 0 0 1px #ffffff14; touch-action: none; user-select: none; -webkit-user-select: none; }
+canvas#c { display: block; width: 100%; height: 100%; }
+button { font-family: var(--mono); cursor: pointer; color: var(--ink); }
+button:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+
+.bars::before, .bars::after { content: ""; position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .5s ease; pointer-events: none; }
+.bars::before { top: 0; } .bars::after { bottom: 0; }
+.bars.on::before, .bars.on::after { height: 7.5%; }
+
+.hud { position: absolute; inset: 12px 12px auto 12px; display: flex; gap: 8px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; pointer-events: none; }
+.hud .g { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { background: #07060dc4; border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; display: flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.chip b { color: var(--ember); font-weight: 600; }
+.chip[data-s="hooded"] b { color: var(--muted); } .chip[data-s="out"] b { color: #ff8a7a; }
+.chip.btn { pointer-events: auto; }
+.meter { width: 120px; height: 7px; background: #3a2f22; border-radius: 4px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--ember-deep), var(--ember)); }
+
+.toast { position: absolute; left: 50%; top: 58px; transform: translateX(-50%); max-width: min(40rem, calc(100% - 32px)); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; font-size: 13px; line-height: 1.5; opacity: 0; transition: opacity .4s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+.dlg { position: absolute; left: 50%; bottom: 9.5%; transform: translateX(-50%); width: min(50rem, calc(100% - 28px)); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px 14px 14px; display: grid; grid-template-columns: 96px 1fr; gap: 14px; box-shadow: 0 16px 50px #000a; }
+.dlg canvas { width: 96px; height: 96px; border-radius: 12px; background: #0b0916; border: 1px solid var(--line); }
+.dlg .name { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+.dlg .text { font-family: var(--display); font-size: clamp(1.02rem, 2.1vw, 1.3rem); line-height: 1.42; min-height: 3.6em; text-wrap: pretty; }
+.dlg .hint { position: absolute; right: 16px; bottom: 9px; font-size: 10px; letter-spacing: .15em; color: var(--muted); transition: opacity .2s; }
+.dlg kbd, .press kbd, .keys kbd { font-family: var(--mono); background: var(--ember); color: #1b1208; border-radius: 4px; padding: 0 5px; font-weight: 600; }
+.choices { display: grid; gap: 6px; margin-top: 8px; }
+.choices button { text-align: left; background: #1b1630; border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; font-family: var(--display); font-size: 1.02rem; }
+.choices button.sel { border-color: var(--ember); background: #2a2140; box-shadow: 0 0 18px #ffd98a30; }
+.choices button.sel::before { content: "\25B8  "; color: var(--ember); }
+
+.pagecard { position: absolute; inset: 0; display: grid; place-items: center; background: #05040ad0; padding: 20px; }
+.pagecard .paper { width: min(34rem, 100%); background: #e9e1cc; color: #2a2418; border-radius: 6px; padding: 26px 30px 22px; box-shadow: 0 20px 60px #000c; transform: rotate(-0.6deg); }
+.pagecard h2 { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; margin: 0 0 12px; color: #7a6c50; font-weight: 600; }
+.pagecard p { font-family: var(--voice); font-style: italic; font-weight: 600; font-size: clamp(1.15rem, 2.4vw, 1.45rem); line-height: 1.42; margin: 0; white-space: pre-line; min-height: 7em; }
+.pagecard .hint { font-size: 10px; letter-spacing: .15em; color: #7a6c50; margin-top: 14px; text-align: right; transition: opacity .2s; }
+
+.press { position: absolute; left: 50%; bottom: 20%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--ember); border-radius: 999px; padding: 9px 18px; font-size: 13px; letter-spacing: .06em; animation: pulse 1.2s ease-in-out infinite; z-index: 5; }
+@keyframes pulse { 50% { box-shadow: 0 0 26px #ffd98a55; } }
+
+.chcard { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; background: #05040a; padding: 24px; opacity: 0; pointer-events: none; transition: opacity .8s; }
+.chcard.show { opacity: 1; pointer-events: auto; }
+.chcard .num { font-size: 12px; letter-spacing: .42em; color: var(--muted); text-transform: uppercase; }
+.chcard .t { font-family: var(--display); font-weight: 600; font-size: clamp(2.2rem, 6vw, 3.8rem); margin: 12px 0 14px; text-wrap: balance; }
+.chcard .e { font-family: var(--voice); font-style: italic; font-size: clamp(1.15rem, 2.6vw, 1.5rem); color: var(--ember); max-width: 34ch; margin: 0 auto; }
+
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; background: radial-gradient(ellipse at 50% 40%, #0d0a1c99, #05040af5); overflow-y: auto; }
+.card { max-width: 36rem; text-align: center; display: grid; gap: 14px; justify-items: center; }
+h1 { font-family: var(--display); font-weight: 900; font-size: clamp(2.6rem, 8vw, 4.8rem); line-height: .95; margin: 0; letter-spacing: -.02em; color: var(--ember); text-shadow: 0 0 44px #ffd98a55; text-wrap: balance; }
+.sub { font-family: var(--voice); font-style: italic; font-size: clamp(1.3rem, 3.2vw, 1.9rem); margin-top: -4px; }
+.card p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--muted); max-width: 44ch; }
+.keys { font-size: 12px; color: var(--muted); line-height: 2; }
+.primary { font-family: var(--display); font-weight: 600; font-size: 1.1rem; color: #1b1208; background: var(--ember); border: 0; border-radius: 999px; padding: 12px 30px; box-shadow: 0 0 30px #ffd98a55; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 9px 18px; font-size: 12px; letter-spacing: .06em; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.small { font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+.small a { color: var(--cold); }
+
+.journal { width: min(42rem, 100%); max-height: 100%; overflow-y: auto; background: #100d1cf8; border: 1px solid var(--line); border-radius: 16px; padding: 22px; text-align: left; }
+.journal h2 { font-family: var(--display); margin: 0 0 12px; font-size: 1.6rem; color: var(--ember); }
+.journal .entry { border-top: 1px solid var(--line); padding: 12px 0; }
+.journal .entry h3 { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+.journal .entry p { font-family: var(--voice); font-style: italic; font-size: 1.15rem; line-height: 1.4; margin: 0; white-space: pre-line; }
+.journal .missing h3 { opacity: .45; }
+
+.epi { position: absolute; inset: 0; display: grid; place-items: center; background: #05040a00; padding: 28px; text-align: center; transition: background 2s; }
+.epi.show { background: #05040ae8; }
+.epi .line { font-family: var(--voice); font-style: italic; font-weight: 600; font-size: clamp(1.4rem, 3.4vw, 2.2rem); line-height: 1.4; max-width: 30ch; white-space: pre-line; opacity: 0; transition: opacity .8s; text-wrap: balance; }
+.epi .line.in { opacity: 1; }
+.epi .end { display: grid; gap: 12px; justify-items: center; }
+
+.touch { display: none; position: absolute; inset: auto 0 0 0; padding: 14px; justify-content: space-between; pointer-events: none; }
+body.is-touch .touch { display: flex; }
+.touch div { display: flex; gap: 10px; pointer-events: auto; }
+.touch button { width: 58px; height: 58px; border-radius: 50%; background: #100d1cb0; border: 1px solid var(--line); font-size: 13px; }
+@media (max-width: 560px) { .touch { padding: 8px; } .touch div { gap: 6px; } .touch button { width: 42px; height: 42px; font-size: 10px; padding: 0; } }
+@media (max-width: 560px) { .dlg { grid-template-columns: 64px 1fr; } .dlg canvas { width: 64px; height: 64px; } .meter { width: 80px; } }
+@media (prefers-reduced-motion: reduce) { .press { animation: none; } .bars::before, .bars::after, .chcard, .epi, .epi .line { transition: none; } }
+</style>
+
+<div class="stage" id="stage">
+  <canvas id="c" aria-label="Game view"></canvas>
+  <div class="bars" id="bars"></div>
+
+  <div class="hud" id="hud" hidden>
+    <div class="g">
+      <div class="chip" id="lanternChip" data-s="none">Lantern <b id="lanternState">none</b></div>
+      <div class="chip" id="flame" hidden>Heartflame <span class="meter"><i id="flamebar"></i></span></div>
+    </div>
+    <div class="g">
+      <div class="chip"><span id="chapName"></span></div>
+      <button class="chip btn" id="journalBtn" type="button">Journal <b id="pageCount">0 / 5</b></button>
+      <button class="chip btn" id="muteBtn" type="button">Sound on</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <div class="dlg" id="dlg" hidden>
+    <canvas id="portrait" width="96" height="96"></canvas>
+    <div><div class="name" id="dlgName"></div><div class="text" id="dlgText"></div><div class="choices" id="choices"></div></div>
+    <div class="hint" id="dlgHint"><kbd>E</kbd> next</div>
+  </div>
+  <div class="press" id="press" hidden><kbd>E</kbd> <span id="pressLabel"></span></div>
+  <div class="pagecard" id="pagecard" hidden><div class="paper"><h2 id="pageTitle"></h2><p id="pageText"></p><div class="hint" id="pageHint">E to put it away</div></div></div>
+
+  <div class="epi" id="epi" hidden><div><div class="line" id="epiText"></div>
+    <div class="end" id="epiEnd" hidden><h1>The Borrowed Dawn</h1><div class="sub">The end</div><div class="small" id="epiStats"></div></div></div></div>
+
+  <div class="chcard" id="chcard"><div><div class="num" id="chNum"></div><div class="t" id="chTitle"></div><p class="e" id="chEpi"></p></div></div>
+
+  <div class="overlay" id="title">
+    <div class="card">
+      <div class="small">LANTERN DRIFT II</div>
+      <h1>The Borrowed Dawn</h1>
+      <div class="sub">She is the only one who doesn&rsquo;t glow.</div>
+      <p>The Heartlamp has been taken. Everyone in Hollowmere has fallen asleep, except the one Lumen with no light to lose. Climb after it.</p>
+      <div class="row"><button class="primary" id="newBtn" type="button">Begin</button><button class="ghost" id="continueBtn" type="button" hidden>Continue</button></div>
+      <div class="keys"><kbd>A</kbd> <kbd>D</kbd> move &middot; <kbd>Space</kbd> jump &middot; <kbd>W</kbd> <kbd>S</kbd> climb &middot; <kbd>E</kbd> interact &middot; <kbd>Q</kbd> hood the lantern &middot; <kbd>J</kbd> journal</div>
+      <div class="small" id="endNote"></div>
+      <div class="small">Headphones recommended &middot; A sequel to Lantern Drift &middot; Made with the <a href="https://github.com/Donchitos/Claude-Code-Game-Studios" target="_blank" rel="noopener">Claude Code Game Studios</a> workflow</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="pause" hidden><div class="card"><div class="sub">Paused</div><div class="row"><button class="primary" id="resumeBtn" type="button">Resume</button><button class="ghost" id="quitBtn" type="button">Back to the title</button></div><div class="small">Your place is saved at the last lamp you lit.</div></div></div>
+  <div class="overlay" id="journal" hidden><div class="journal" role="dialog" aria-label="Journal"><button class="ghost" id="closeJournal" type="button" style="float:right">Close</button><h2>Journal</h2><div id="journalBody"></div></div></div>
+
+  <div class="touch"><div><button data-k="left" type="button">&#9664;</button><button data-k="right" type="button">&#9654;</button><button data-k="up" type="button">&#9650;</button><button data-k="down" type="button">&#9660;</button></div>
+    <div><button data-k="hood" type="button">Hood</button><button data-k="act" type="button">E</button><button data-k="jump" type="button">Jump</button></div></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+// ---------------------------------------------------------------- core: canvas, input, helpers, save
+const TILE = 32, VH = 540;
+const cv = document.getElementById('c'); let ctx = cv.getContext('2d');
+const stage = document.getElementById('stage');
+let VW = 960, SC = 1, DPR = 1;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function resize() {
+  DPR = window.__dpr || Math.min(2, window.devicePixelRatio || 1);   // __dpr: fixed scale for the capture rig
+  const w = stage.clientWidth, h = stage.clientHeight;
+  cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
+  SC = cv.height / VH; VW = cv.width / SC;
+  if (typeof Light !== 'undefined') Light.resize();
+}
+addEventListener('resize', resize);
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
+function rng(seed) { let s = seed % 2147483647; if (s <= 0) s += 2147483646; return () => (s = s * 16807 % 2147483647) / 2147483647; }
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+// ---- input: keyboard, touch buttons, and a test hook (window.__in)
+const held = {}, tapped = {};
+const KEYMAP = { arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right', arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down',
+  ' ': 'jump', z: 'jump', e: 'act', enter: 'act', x: 'act', q: 'hood', shift: 'hood', f: 'hood', escape: 'pause', p: 'pause', j: 'journal' };
+addEventListener('keydown', e => {
+  const k = KEYMAP[e.key.toLowerCase()]; if (!k) return;
+  if (!held[k]) tapped[k] = true; held[k] = true;
+  if (e.key.startsWith('Arrow') || e.key === ' ') e.preventDefault();
+});
+addEventListener('keyup', e => { const k = KEYMAP[e.key.toLowerCase()]; if (k) held[k] = false; });
+addEventListener('blur', () => { for (const k in held) held[k] = false; });
+const I = { left: false, right: false, up: false, down: false, jump: false, jumpP: false, actP: false, hoodP: false, pauseP: false, journalP: false };
+let botPrev = {};
+function pollInput() {
+  const b = window.__in || {};
+  for (const k of ['left', 'right', 'up', 'down', 'jump']) I[k] = !!(held[k] || b[k]);
+  I.jumpP = !!(tapped.jump || tapped.up && false || (b.jump && !botPrev.jump));
+  I.actP = !!(tapped.act || (b.act && !botPrev.act));
+  I.hoodP = !!(tapped.hood || (b.hood && !botPrev.hood));
+  I.pauseP = !!tapped.pause; I.journalP = !!tapped.journal;
+  botPrev = Object.assign({}, b);
+  for (const k in tapped) tapped[k] = false;
+}
+// touch buttons (shown only on touch devices)
+document.querySelectorAll('[data-k]').forEach(el => {
+  const k = el.dataset.k;
+  const on = e => { e.preventDefault(); if (!held[k]) tapped[k] = true; held[k] = true; };
+  const off = e => { e.preventDefault(); held[k] = false; };
+  el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('pointerleave', off);
+});
+addEventListener('pointerdown', e => { if (e.pointerType === 'touch') document.body.classList.add('is-touch'); }, { once: false });
+
+// ---- save (best effort: storage can be unavailable)
+const SAVE_KEY = 'lantern-drift-2-v1';
+const Save = {
+  data: { chapter: 1, cp: null, flags: {}, pages: [], done: false, endings: [] },
+  load() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && typeof s === 'object') this.data = Object.assign(this.data, s); } catch (e) {} },
+  write() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) {} },
+  reset() { this.data = { chapter: 1, cp: null, flags: {}, pages: [], done: false, endings: this.data.endings || [] }; this.write(); },
+};
+Save.load();
+const flag = (k, v) => { if (v === undefined) return Save.data.flags[k]; Save.data.flags[k] = v; };
+
+// ---- game-time timers (not setTimeout, so pausing and tests stay exact)
+const timers = [];
+function after(sec, fn) { timers.push({ t: sec, fn }); }
+const wait = sec => new Promise(res => after(sec, res));
+function stepTimers(dt) {
+  for (let i = timers.length - 1; i >= 0; i--) { const t = timers[i]; t.t -= dt; if (t.t <= 0) { timers.splice(i, 1); t.fn(); } }
+}
+
+// ---------------------------------------------------------------- audio: everything is synthesised, no files
+const Sfx = {
+  ac: null, out: null, verb: null, muted: false, bed: null, musicT: 0, mood: null, step: 0,
+  init() {
+    if (this.ac) { if (this.ac.state === 'suspended') this.ac.resume(); return; }
+    try { this.ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    const c = this.ac;
+    this.out = c.createGain(); this.out.gain.value = 0.8;
+    const comp = c.createDynamicsCompressor(); this.out.connect(comp); comp.connect(c.destination);
+    const d = c.createDelay(1); d.delayTime.value = 0.29; const fb = c.createGain(); fb.gain.value = 0.42;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1900;
+    d.connect(lp); lp.connect(fb); fb.connect(d); d.connect(this.out);
+    this.verb = c.createGain(); this.verb.gain.value = 0.5; this.verb.connect(d);
+  },
+  setMuted(m) { this.muted = m; if (this.out) this.out.gain.setTargetAtTime(m ? 0 : 0.8, this.ac.currentTime, 0.05); },
+  tone(f, dur, vol = 0.1, type = 'sine', when = 0, slide = 0) {
+    const c = this.ac; if (!c) return;
+    const t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.out); g.connect(this.verb); o.start(t); o.stop(t + dur + 0.05);
+  },
+  noise(dur, vol, freq, q = 1, type = 'bandpass', when = 0) {
+    const c = this.ac; if (!c) return;
+    const n = c.createBufferSource(), b = c.createBuffer(1, Math.max(1, c.sampleRate * dur | 0), c.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    n.buffer = b; const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = c.createGain(); g.gain.value = vol; n.connect(f); f.connect(g); g.connect(this.out); g.connect(this.verb); n.start(c.currentTime + when);
+  },
+  // named effects
+  foot() { this.noise(0.06, 0.05, 500 + Math.random() * 300, 2); },
+  jump() { this.tone(300, 0.14, 0.05, 'sine', 0, 260); },
+  land() { this.noise(0.09, 0.08, 260, 1.5); },
+  hood(open) { this.noise(0.05, 0.1, open ? 2600 : 1200, 4); this.tone(open ? 660 : 330, 0.12, 0.04, 'triangle'); },
+  lamp() { [523, 659, 784].forEach((f, i) => this.tone(f, 1.4, 0.07, 'sine', i * 0.09)); },
+  page() { this.noise(0.18, 0.06, 3000, 1); this.tone(988, 0.9, 0.04, 'sine', 0.05); },
+  snuff() { this.noise(0.3, 0.14, 900, 0.8, 'lowpass'); this.tone(180, 0.3, 0.07, 'sawtooth', 0, -90); },
+  hurt() { this.tone(160, 0.4, 0.1, 'sawtooth', 0, -80); this.noise(0.25, 0.1, 400, 1); },
+  splash() { this.noise(0.5, 0.12, 900, 0.6); },
+  clank() { this.tone(140, 0.2, 0.08, 'square'); this.noise(0.12, 0.08, 2400, 5); },
+  alert() { this.tone(880, 0.12, 0.07, 'square'); this.tone(1175, 0.2, 0.07, 'square', 0.12); },
+  mirror() { this.tone(1320, 0.5, 0.05, 'triangle'); this.noise(0.08, 0.06, 3200, 6); },
+  bulb(i) { this.tone([392, 523, 659][i] || 440, 1.6, 0.12, 'triangle'); },
+  sour() { this.tone(233, 0.8, 0.08, 'sawtooth'); this.tone(247, 0.8, 0.08, 'sawtooth'); },
+  open() { [196, 262, 330, 392].forEach((f, i) => this.tone(f, 1.8, 0.07, 'triangle', i * 0.12)); this.noise(1.2, 0.07, 180, 0.7, 'lowpass'); },
+  wing() { this.noise(0.35, 0.1, 300, 0.7, 'lowpass'); },
+  roar() { this.tone(70, 1.4, 0.16, 'sawtooth', 0, -30); this.noise(1.2, 0.12, 240, 0.6, 'lowpass'); },
+  blip(pitch = 1) { this.tone(420 * pitch + Math.random() * 40, 0.05, 0.035, 'triangle'); },
+  swell() { [262, 330, 392, 523, 659, 784].forEach((f, i) => this.tone(f, 7, 0.07, 'triangle', i * 0.4)); },
+  thunder() { this.noise(2.2, 0.2, 90, 0.5, 'lowpass'); },
+  // ---- ambient bed + slow generative lullaby (C D E G A, "rising, one to five")
+  setMood(m) {
+    const c = this.ac; this.mood = m; if (!c) return;
+    if (this.bed) { const old = this.bed; old.g.gain.setTargetAtTime(0, c.currentTime, 0.6); setTimeout(() => old.o.forEach(o => { try { o.stop(); } catch (e) {} }), 3000); this.bed = null; }
+    if (!m) return;
+    const g = c.createGain(); g.gain.value = 0; const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = m.cut || 380;
+    const os = m.drone.map((fr, i) => { const o = c.createOscillator(); o.type = i ? 'triangle' : 'sine'; o.frequency.value = fr; o.detune.value = i * 5; o.connect(f); o.start(); return o; });
+    if (m.wind) { // looping filtered noise
+      const n = c.createBufferSource(), b = c.createBuffer(1, c.sampleRate * 3, c.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      n.buffer = b; n.loop = true; const wf = c.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 500; wf.Q.value = 0.6; const wg = c.createGain(); wg.gain.value = m.wind;
+      n.connect(wf); wf.connect(wg); wg.connect(g); n.start(); os.push(n);
+    }
+    f.connect(g); g.connect(this.out); g.gain.setTargetAtTime(0.085, c.currentTime, 1.5);
+    this.bed = { g, o: os };
+  },
+  music(dt) {
+    if (!this.ac || !this.mood || !this.mood.scale) return;
+    this.musicT -= dt; if (this.musicT > 0) return;
+    const m = this.mood, s = m.scale, pat = m.pattern || [0, 1, 2, 3, 4, 3, 2, 4];
+    const n = pat[this.step++ % pat.length];
+    if (n >= 0) { const f = m.root * Math.pow(2, s[n % s.length] / 12) * (n >= s.length ? 2 : 1); this.tone(f, 2.6, m.vol || 0.045, 'sine'); this.tone(f * 2, 1.2, (m.vol || 0.045) * 0.3, 'sine'); }
+    this.musicT = (m.beat || 1.1) * (this.step % 4 === 0 ? 1.6 : 1);
+  },
+};
+const MOODS = {
+  hollow: { drone: [55, 82.4], scale: [0, 2, 4, 7, 9], root: 261.6, beat: 1.2 },
+  dark:   { drone: [49, 73.4], scale: [0, 3, 5, 7, 10], root: 220, beat: 1.5, vol: 0.035 },
+  roots:  { drone: [65.4, 98], scale: [0, 2, 3, 7, 9], root: 196, beat: 1.25 },
+  works:  { drone: [46.2, 69.3], scale: [0, 2, 3, 7, 8], root: 174.6, beat: 1.4, vol: 0.04, cut: 300 },
+  tower:  { drone: [51.9, 77.8], scale: [0, 2, 5, 7, 9], root: 207.6, beat: 1.3, wind: 0.02 },
+  storm:  { drone: [41.2, 61.7], scale: [0, 1, 5, 7, 8], root: 164.8, beat: 0.55, vol: 0.05, wind: 0.07, pattern: [0, 0, 3, 0, 4, 0, 3, 2] },
+  dawn:   { drone: [65.4, 98, 130.8], scale: [0, 2, 4, 7, 9], root: 261.6, beat: 0.9, vol: 0.06, cut: 900 },
+};
+
+// ---------------------------------------------------------------- world: tile map, collision, level loading
+const G = { lvl: null, n: 0, t: 0, ents: [], solids: [], water: [], player: null, cam: { x: 0, y: 0, zoom: 1, tx: null, ty: null, tz: 1, shake: 0 },
+  cut: false, mode: 'title', fade: 1, fadeDir: -1, fadeCb: null, toast: null, cpIndex: 0, sky: 0 };
+
+const SOLID = { '#': 1 };
+function tileAt(tx, ty) { const L = G.lvl; if (ty < 0) return ' '; if (tx < 0 || tx >= L.w || ty >= L.h) return '#'; return L.tiles[ty][tx]; }
+function solidAt(px, py) {
+  if (SOLID[tileAt(Math.floor(px / TILE), Math.floor(py / TILE))]) return true;
+  for (const s of G.solids) if (s.on && px >= s.x && px < s.x + s.w && py >= s.y && py < s.y + s.h) return true;
+  return false;
+}
+function rectHitsSolid(x, y, w, h) {
+  const x0 = Math.floor(x / TILE), x1 = Math.floor((x + w - 0.01) / TILE), y0 = Math.floor(y / TILE), y1 = Math.floor((y + h - 0.01) / TILE);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (SOLID[tileAt(tx, ty)]) return true;
+  for (const s of G.solids) if (s.on && x < s.x + s.w && x + w > s.x && y < s.y + s.h && y + h > s.y) return true;
+  return false;
+}
+// move a body one axis at a time, so it slides along walls and floors
+function moveBody(b, dt) {
+  let dx = b.vx * dt, dy = b.vy * dt;
+  b.hitWall = false;
+  if (dx) {
+    const step = Math.sign(dx) * Math.min(Math.abs(dx), 8); let left = Math.abs(dx);
+    while (left > 0) { const s = Math.sign(dx) * Math.min(left, 8); if (rectHitsSolid(b.x + s, b.y, b.w, b.h)) { b.vx = 0; b.hitWall = true; break; } b.x += s; left -= Math.abs(s); }
+  }
+  const wasGround = b.onGround; b.onGround = false;
+  if (dy) {
+    let left = Math.abs(dy);
+    while (left > 0) {
+      const s = Math.sign(dy) * Math.min(left, 8);
+      let blocked = rectHitsSolid(b.x, b.y + s, b.w, b.h);
+      // one-way platforms: only when falling onto them from above
+      if (!blocked && s > 0 && !b.dropThrough) {
+        const footNow = b.y + b.h, footNext = footNow + s;
+        const ty = Math.ceil((footNow - 0.01) / TILE), edge = ty * TILE;   // the next tile row boundary below the feet
+        let landY = null;
+        if (edge <= footNext + 0.001)
+          for (let tx = Math.floor(b.x / TILE); tx <= Math.floor((b.x + b.w - 0.01) / TILE); tx++) if (tileAt(tx, ty) === '=') landY = edge;
+        for (const p of G.ents) if (p.plat && p.open > 0.6 && b.x + b.w > p.x && b.x < p.x + p.w && footNow <= p.y + 0.01 && footNext >= p.y) landY = p.y;
+        if (landY != null) { b.y = landY - b.h; b.onGround = true; b.vy = 0; break; }
+      }
+      if (blocked) { if (s > 0) b.onGround = true; b.vy = 0; break; }
+      b.y += s; left -= Math.abs(s);
+    }
+  } else if (wasGround) { b.onGround = rectHitsSolid(b.x, b.y + 1, b.w, b.h); }
+}
+function los(ax, ay, bx, by) {
+  const d = dist(ax, ay, bx, by), n = Math.ceil(d / 10);
+  for (let i = 1; i < n; i++) { const t = i / n; if (solidAt(lerp(ax, bx, t), lerp(ay, by, t))) return false; }
+  return true;
+}
+function inWater(x, y) {
+  for (const w of G.water) if (x >= w.x && x < w.x + w.w && y > w.surf() + 8 && y < w.y + w.h) return w;
+  return null;
+}
+
+function loadLevel(n, fromSave) {
+  const def = LEVELS[n], L = { def, n, w: def.map[0].length, h: def.map.length, tiles: def.map.map(r => r.split('')), marks: {} };
+  for (const r of def.map) if (r.length !== L.w) console.error('level ' + n + ' row width mismatch', r.length, L.w);
+  G.lvl = L; G.n = n; G.ents = []; G.solids = []; G.water = []; G.t = 0; G.cut = false; G.toast = null;
+  timers.length = 0; Dialog.clear();
+  const mark = {}; // letter -> list of tile coords, sorted left to right
+  for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
+    const c = L.tiles[y][x];
+    if ('#=H^w '.includes(c)) continue;
+    (mark[c] = mark[c] || []).push({ tx: x, ty: y, x: x * TILE + TILE / 2, y: y * TILE + TILE });
+    L.tiles[y][x] = (def.map[y][x - 1] === 'w' || def.map[y][x + 1] === 'w') ? 'w' : ' ';   // a marker placed in water stays water
+  }
+  for (const k in mark) mark[k].sort((a, b) => a.x - b.x || a.y - b.y);
+  L.marks = mark;
+  // water regions: runs of 'w' columns that share a surface row
+  const seen = {};
+  for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
+    if (L.tiles[y][x] !== 'w' || seen[x + ',' + y] || tileAt(x, y - 1) === 'w') continue;
+    let x1 = x; while (x1 + 1 < L.w && L.tiles[y][x1 + 1] === 'w' && tileAt(x1 + 1, y - 1) !== 'w') x1++;
+    let y1 = y; while (y1 + 1 < L.h && L.tiles[y1 + 1][x] === 'w') y1++;
+    for (let yy = y; yy <= y1; yy++) for (let xx = x; xx <= x1; xx++) seen[xx + ',' + yy] = 1;
+    const w = { x: x * TILE, y: y * TILE, w: (x1 - x + 1) * TILE, h: (y1 - y + 1) * TILE, drain: 0, drained: false, id: G.water.length };
+    w.surf = () => w.y + 8 + w.drain * (w.h - 4);
+    G.water.push(w);
+  }
+  Things.spawn(L, mark);
+  def.setup && def.setup(L, mark);
+  // player start: checkpoint from a save, else 'P'
+  const lamps = G.ents.filter(e => e.type === 'lamp');
+  let sx = mark.P[0].x, sy = mark.P[0].y;
+  G.cpIndex = -1;
+  if (fromSave != null && lamps[fromSave]) { const l = lamps[fromSave]; l.lit = 1; sx = l.x; sy = l.y; G.cpIndex = fromSave; for (let i = 0; i < fromSave; i++) lamps[i].lit = 1; }
+  G.player = Player.make(sx, sy);
+  G.cam.x = sx; G.cam.y = sy - 60; G.cam.tx = null; G.cam.zoom = G.cam.tz = 1;
+  Render.buildLevel(L);
+  Light.buildStatic();
+  Sfx.setMood(MOODS[def.mood]);
+  Save.data.chapter = n; Save.data.cp = fromSave != null ? fromSave : null; Save.write();
+  def.enter && def.enter(L, fromSave != null);
+}
+
+function respawn(why) {
+  if (G.dying) return; G.dying = true; Sfx.hurt(); G.cam.shake = 10;
+  fadeTo(() => {
+    const lamps = G.ents.filter(e => e.type === 'lamp'), p = G.player;
+    const l = lamps[G.cpIndex], m = G.lvl.marks.P[0];
+    p.x = (l ? l.x : m.x) - p.w / 2; p.y = (l ? l.y : m.y) - p.h; p.vx = p.vy = 0; p.snuffed = 0; p.climb = false;
+    for (const e of G.ents) e.reset && e.reset();
+    G.dying = false; if (why) toast(why);
+  }, 3);
+}
+function fadeTo(cb, speed = 1.6) { G.fadeDir = speed; G.fadeCb = cb; }
+function stepFade(dt) {
+  if (G.fadeDir > 0) { G.fade = Math.min(1, G.fade + dt * G.fadeDir); if (G.fade >= 1) { const cb = G.fadeCb; G.fadeCb = null; G.fadeDir = -1.4; cb && cb(); } }
+  else if (G.fadeDir < 0) { G.fade = Math.max(0, G.fade + dt * G.fadeDir); if (G.fade <= 0) G.fadeDir = 0; }
+}
+function toast(text, sec = 3.6) { G.toast = { text, t: sec, max: sec }; }
+
+// ---------------------------------------------------------------- lighting: a darkness layer with ray-cast holes, so walls cast real shadows
+const Light = {
+  cvs: document.createElement('canvas'), d: null, list: [], statics: [], RAYS: 96,
+  resize() { this.cvs.width = Math.ceil(cv.width / 2); this.cvs.height = Math.ceil(cv.height / 2); this.d = this.cvs.getContext('2d'); },
+  // Walk rays out from (x, y) until each one hits a wall. The end points outline the light.
+  cast(x, y, r) {
+    const pts = [];
+    for (let i = 0; i < this.RAYS; i++) {
+      const a = i / this.RAYS * Math.PI * 2;
+      const dx = Math.cos(a), dy = Math.sin(a);
+      let d = 0;
+      // step 6 px at a time; +9 at the end so the wall face itself is lit
+      while (d < r) { d += 6; if (solidAt(x + dx * d, y + dy * d)) { d += 9; break; } }
+      d = Math.min(d, r);
+      pts.push(x + dx * d, y + dy * d);
+    }
+    return pts;
+  },
+  buildStatic() { this.statics = []; },
+  begin() { this.list.length = 0; },
+  // col: [r,g,b]; k: strength 0..1; shadow: cast against walls (cached for lights that never move)
+  add(x, y, r, col, k = 1, shadow = true, cacheKey = null) {
+    if (k <= 0.01 || r < 4) return;
+    const c = G.cam; if (x + r < c.x - VW / 2 / c.zoom - 40 || x - r > c.x + VW / 2 / c.zoom + 40 || y + r < c.y - VH / 2 / c.zoom - 40 || y - r > c.y + VH / 2 / c.zoom + 40) return;
+    let poly = null;
+    if (shadow) {
+      if (cacheKey) { const s = this.statics[cacheKey]; if (s && s.r === r) poly = s.p; else { poly = this.cast(x, y, r); this.statics[cacheKey] = { r, p: poly }; } }
+      else poly = this.cast(x, y, r);
+    }
+    this.list.push({ x, y, r, col, k, poly });
+  },
+  invalidate() { this.statics = []; },
+  render(ambient, tint) {
+    const d = this.d, w = this.cvs.width, h = this.cvs.height;
+    d.setTransform(1, 0, 0, 1, 0, 0); d.globalCompositeOperation = 'source-over';
+    d.clearRect(0, 0, w, h); d.fillStyle = rgba(tint, ambient); d.fillRect(0, 0, w, h);
+    Render.worldTransform(d, 0.5);
+    d.globalCompositeOperation = 'destination-out';
+    for (const L of this.list) {
+      const g = d.createRadialGradient(L.x, L.y, 0, L.x, L.y, L.r);
+      g.addColorStop(0, `rgba(0,0,0,${L.k})`); g.addColorStop(0.5, `rgba(0,0,0,${L.k * 0.72})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+      d.fillStyle = g; d.beginPath();
+      if (L.poly) { d.moveTo(L.poly[0], L.poly[1]); for (let i = 2; i < L.poly.length; i += 2) d.lineTo(L.poly[i], L.poly[i + 1]); d.closePath(); }
+      else d.arc(L.x, L.y, L.r, 0, 7);
+      d.fill();
+    }
+    d.globalCompositeOperation = 'source-over';
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this.cvs, 0, 0, cv.width, cv.height);
+    // warm colour where light lands
+    Render.worldTransform(ctx, 1); ctx.globalCompositeOperation = 'lighter';
+    for (const L of this.list) {
+      const g = ctx.createRadialGradient(L.x, L.y, 0, L.x, L.y, L.r * 0.8);
+      g.addColorStop(0, rgba(L.col, 0.30 * L.k)); g.addColorStop(1, rgba(L.col, 0));
+      ctx.fillStyle = g; ctx.beginPath();
+      if (L.poly) { ctx.moveTo(L.poly[0], L.poly[1]); for (let i = 2; i < L.poly.length; i += 2) ctx.lineTo(L.poly[i], L.poly[i + 1]); ctx.closePath(); }
+      else ctx.arc(L.x, L.y, L.r * 0.8, 0, 7);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  },
+};
+
+// ---------------------------------------------------------------- player: Nib, the lamplighter who doesn't glow
+const RUN = 150, GRAV = 1500, JUMP = 490;
+const Player = {
+  make(x, y) {
+    return { x: x - 9, y: y - 26, w: 18, h: 26, vx: 0, vy: 0, onGround: false, face: 1, hasLantern: !!flag('lantern'), open: true, snuffed: 0,
+      climb: false, coyote: 0, buffer: 0, dropT: 0, walkT: 0, swing: 0, swingV: 0, stepT: 0, glow: flag('glow') ? 1 : 0, land: 0, stun: 0 };
+  },
+  lit(p) { return p.hasLantern && p.open && p.snuffed <= 0; },
+  lanternPos(p) {
+    const cx = p.x + p.w / 2, by = p.y + p.h;
+    return { x: cx + p.face * 15 + Math.sin(p.swing) * 9, y: by - 30 + Math.cos(p.swing) * 9 };
+  },
+  update(p, dt) {
+    const free = !G.cut && p.stun <= 0;
+    const ax = free ? (I.right ? 1 : 0) - (I.left ? 1 : 0) : 0;
+    if (ax) p.face = ax;
+    p.stun = Math.max(0, p.stun - dt); p.snuffed = Math.max(0, p.snuffed - dt); p.land = Math.max(0, p.land - dt * 4);
+    // ladders and vines
+    const cx = p.x + p.w / 2, tx = Math.floor(cx / TILE);
+    const onLadder = tileAt(tx, Math.floor((p.y + p.h - 4) / TILE)) === 'H' || tileAt(tx, Math.floor((p.y + 4) / TILE)) === 'H';
+    if (free && onLadder && (I.up || (I.down && !p.onGround)) && !p.climb) { p.climb = true; p.vy = 0; }
+    if (p.climb) {
+      if (!onLadder) p.climb = false;
+      else {
+        p.vy = free ? ((I.down ? 1 : 0) - (I.up ? 1 : 0)) * 100 : 0; p.vx = ax * 70;
+        p.x += (tx * TILE + TILE / 2 - p.w / 2 - p.x) * Math.min(1, dt * 6) * (ax ? 0 : 1);
+        if (free && I.jumpP) { p.climb = false; p.vy = -JUMP * 0.75; p.vx = ax * RUN; Sfx.jump(); }
+      }
+    }
+    if (!p.climb) {
+      const target = ax * RUN * (p.stun > 0 ? 0 : 1), k = p.onGround ? 14 : 8;
+      p.vx += (target - p.vx) * Math.min(1, dt * k);
+      // A jump that feels fair: gravity, plus two small kindnesses.
+      p.vy = Math.min(p.vy + GRAV * dt, 760);
+      // coyote time: you can still jump a moment after leaving a ledge
+      p.coyote = p.onGround ? 0.1 : Math.max(0, p.coyote - dt);
+      // jump buffer: press a little early and the jump still happens
+      p.buffer = free && I.jumpP ? 0.12 : Math.max(0, p.buffer - dt);
+      if (free && I.down && I.jumpP) { p.dropT = 0.22; p.buffer = 0; }   // down + jump drops through a ledge
+      if (p.buffer > 0 && p.coyote > 0) {
+        p.vy = -JUMP;
+        p.buffer = 0; p.coyote = 0; p.onGround = false;
+        Sfx.jump(); Fx.dust(cx, p.y + p.h, 5);
+      }
+      if (!I.jump && p.vy < -160 && free) p.vy = -160;   // let go early for a short hop
+    }
+    p.dropT = Math.max(0, p.dropT - dt); p.dropThrough = p.dropT > 0 || p.climb;
+    const wasAir = !p.onGround, fallV = p.vy;
+    moveBody(p, dt);
+    if (p.climb) p.onGround = false;
+    if (wasAir && p.onGround && fallV > 250) { Sfx.land(); p.land = 1; Fx.dust(cx, p.y + p.h, 6); }
+    // feet
+    if (p.onGround && Math.abs(p.vx) > 30) { p.walkT += dt * Math.abs(p.vx) / 14; p.stepT -= dt; if (p.stepT <= 0) { Sfx.foot(); p.stepT = 0.27; } }
+    // lantern swings on its crook like a small pendulum
+    p.swingV += (-p.swing * 60 - p.swingV * 5 - p.vx * 0.25) * dt; p.swing += p.swingV * dt; p.swing = clamp(p.swing, -1.1, 1.1);
+    if (free && I.hoodP && p.hasLantern) { p.open = !p.open; Sfx.hood(p.open); if (G.lvl.def.onHood) G.lvl.def.onHood(p.open); }
+    // hazards
+    const fx = p.x + p.w / 2, fy = p.y + p.h - 2;
+    if (!G.dying) {
+      if (tileAt(Math.floor(fx / TILE), Math.floor(fy / TILE)) === '^') respawn('Thorns. A lit lamp caught you.');
+      else if (inWater(fx, p.y + p.h * 0.5)) { Sfx.splash(); Fx.splash(fx, p.y + p.h * 0.5); respawn('The water is deep. Find another way across.'); }
+      else if (p.y > G.lvl.h * TILE + 60) respawn();
+    }
+  },
+  draw(p) {
+    const cx = p.x + p.w / 2, by = p.y + p.h, f = p.face, t = G.t;
+    const moving = p.onGround && Math.abs(p.vx) > 30, air = !p.onGround && !p.climb;
+    const bob = moving ? Math.abs(Math.sin(p.walkT)) * 2.2 : Math.sin(t * 2.2) * 0.8;
+    const sq = 1 + p.land * 0.18, st = air ? clamp(1 + Math.abs(p.vy) / 2200, 1, 1.18) : 1 / sq;
+    ctx.save(); ctx.translate(cx, by); ctx.scale(f * sq / (air ? st : 1), st);
+    // legs
+    ctx.strokeStyle = '#1b1836'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+    for (let i = 0; i < 2; i++) {
+      const ph = p.walkT + i * Math.PI, lx = (i ? 3.5 : -3.5) + (moving ? Math.sin(ph) * 4 : 0), ly = moving ? -Math.max(0, Math.cos(ph)) * 3 : 0;
+      ctx.beginPath(); ctx.moveTo(i ? 3 : -3, -7); ctx.lineTo(lx + (air ? (i ? 3 : -4) : 0), ly + (air ? -2 : 0)); ctx.stroke();
+    }
+    // scarf trails behind
+    const sw = Math.sin(t * 5 + p.walkT) * 2 + clamp(-p.vx * f / 30, -6, 6);
+    ctx.fillStyle = '#d9792b'; ctx.beginPath(); ctx.moveTo(-3, -17 - bob); ctx.quadraticCurveTo(-11 + sw, -15 - bob, -15 + sw, -9 - bob + Math.sin(t * 7) * 1.5); ctx.lineTo(-10 + sw, -13 - bob); ctx.closePath(); ctx.fill();
+    // body: abdomen (the part that should glow, and doesn't), then thorax and head
+    const gl = p.glow;
+    if (gl > 0) { ctx.shadowColor = '#ffd98a'; ctx.shadowBlur = 16 * gl; }
+    ctx.fillStyle = gl > 0 ? `rgb(${lerp(38, 255, gl) | 0},${lerp(33, 214, gl) | 0},${lerp(74, 130, gl) | 0})` : '#26214a';
+    ctx.beginPath(); ctx.ellipse(-3, -9 - bob, 7.5, 6.5, -0.3, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#312a5e'; ctx.beginPath(); ctx.ellipse(1, -14 - bob, 6.5, 7.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#3a3270'; ctx.beginPath(); ctx.arc(3, -23 - bob, 7.2, 0, 7); ctx.fill();
+    // face
+    const blink = (t % 3.7) < 0.12 ? 0.15 : 1;
+    ctx.fillStyle = '#f3ecd8'; ctx.beginPath(); ctx.ellipse(6, -23.5 - bob, 2.1, 2.6 * blink, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(1, -23.5 - bob, 1.7, 2.3 * blink, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1b1836'; ctx.beginPath(); ctx.arc(6.6, -23.2 - bob, 1, 0, 7); ctx.fill();
+    // antennae
+    ctx.strokeStyle = '#3a3270'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 2; i++) { const a = Math.sin(t * 3 + i) * 1.5 - p.vx * f / 60; ctx.beginPath(); ctx.moveTo(1 + i * 3, -29 - bob); ctx.quadraticCurveTo(-1 + i * 4 + a, -36 - bob, -5 + i * 5 + a * 2, -38 - bob); ctx.stroke(); }
+    // crook and lantern
+    if (p.hasLantern) {
+      ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(2, -13 - bob); ctx.lineTo(13, -36); ctx.quadraticCurveTo(17, -41, 15, -30); ctx.stroke();
+      ctx.restore();
+      const lp = Player.lanternPos(p), on = Player.lit(p);
+      ctx.save(); ctx.translate(lp.x, lp.y); ctx.rotate(-p.swing * 0.5);
+      ctx.strokeStyle = '#8a6a44'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, -5); ctx.stroke();
+      ctx.fillStyle = '#4a3b2a'; ctx.fillRect(-5, -6, 10, 2.5); ctx.fillRect(-5, 5, 10, 2);
+      ctx.fillStyle = on ? '#ffd98a' : (p.snuffed > 0 ? '#3a3440' : '#5a4630'); ctx.fillRect(-4, -3.5, 8, 8.5);
+      if (on) { ctx.fillStyle = '#fff6d8'; ctx.beginPath(); ctx.ellipse(0, 1.5, 1.8, 2.8 + Math.sin(t * 17) * 0.5, 0, 0, 7); ctx.fill(); }
+      else if (!p.open) { ctx.fillStyle = '#2b2218'; ctx.fillRect(-4, -3.5, 8, 8.5); ctx.fillStyle = '#6b5236'; ctx.fillRect(-4, -0.5, 8, 1); }
+      ctx.restore();
+    } else ctx.restore();
+  },
+};
+
+// ---------------------------------------------------------------- things: particles, dialogue, and everything Nib can touch
+const Fx = {
+  ps: [],
+  add(o) { if (this.ps.length < 500) this.ps.push(Object.assign({ vx: 0, vy: 0, g: 0, life: 1, max: 1, size: 2, col: [255, 230, 170], add: false }, o, { max: o.life || 1 })); },
+  dust(x, y, n) { for (let i = 0; i < n; i++) this.add({ x, y, vx: (Math.random() - 0.5) * 60, vy: -Math.random() * 30, life: 0.4 + Math.random() * 0.3, size: 2 + Math.random() * 2, col: [150, 140, 170] }); },
+  splash(x, y) { for (let i = 0; i < 16; i++) this.add({ x, y, vx: (Math.random() - 0.5) * 160, vy: -80 - Math.random() * 170, g: 600, life: 0.7, size: 2, col: [150, 210, 230] }); },
+  spark(x, y, n, col = [255, 220, 150]) { for (let i = 0; i < n; i++) { const a = Math.random() * 7, s = 20 + Math.random() * 90; this.add({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 20, g: 60, life: 0.5 + Math.random() * 0.7, size: 1.5 + Math.random() * 1.5, col, add: true }); } },
+  update(dt) { for (let i = this.ps.length - 1; i >= 0; i--) { const p = this.ps[i]; p.life -= dt; if (p.life <= 0) { this.ps.splice(i, 1); continue; } p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; } },
+  draw(additive) {
+    for (const p of this.ps) { if (!!p.add !== additive) continue; ctx.fillStyle = rgba(p.col, Math.min(1, p.life / p.max * 1.5) * (p.a || 0.8)); ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, 7); ctx.fill(); }
+  },
+};
+
+// ---- dialogue: a line types itself out; act advances. Scenes are plain async functions.
+const CAST = {
+  nib: { name: 'Nib', col: [150, 135, 255], pitch: 1.25 }, sorrel: { name: 'Sorrel', col: [255, 200, 120], pitch: 0.95 },
+  wick: { name: 'Wick', col: [255, 214, 140], pitch: 0.7 }, fiddle: { name: 'Fiddle', col: [200, 170, 110], pitch: 1.6 },
+  brine: { name: 'Brine', col: [120, 220, 220], pitch: 0.55 }, kid: { name: 'Tansy', col: [255, 190, 150], pitch: 1.5 },
+  maren: { name: 'Maren’s journal', col: [230, 220, 200], pitch: 1 }, none: { name: '', col: [200, 200, 210], pitch: 1 },
+};
+const Dialog = {
+  cur: null, log: [],
+  clear() { if (this.cur && this.cur.res) this.cur.res(0); this.cur = null; },
+  say(who, text) { return new Promise(res => { this.cur = { kind: 'say', who, text, n: 0, t: 0, res }; }); },
+  choose(who, text, options) { return new Promise(res => { this.cur = { kind: 'choice', who, text, options, n: 0, t: 0, sel: 0, res }; }); },
+  press(label) { return new Promise(res => { this.cur = { kind: 'press', who: 'none', text: label, n: 999, t: 0, res }; }); },
+  page(title, text) { return new Promise(res => { this.cur = { kind: 'page', who: 'maren', title, text, n: 0, t: 0, res }; }); },
+  update(dt) {
+    const c = this.cur; if (!c) return;
+    c.t += dt;
+    const before = Math.floor(c.n);
+    c.n = Math.min(c.text.length, c.n + dt * (c.kind === 'page' ? 60 : 38));
+    if (Math.floor(c.n) > before && Math.floor(c.n) % 3 === 0 && c.text[Math.floor(c.n) - 1] !== ' ') Sfx.blip(CAST[c.who].pitch);
+    const done = c.n >= c.text.length;
+    if (c.kind === 'choice' && done) {
+      if (I.jumpP || tappedDir(-1)) c.sel = (c.sel + c.options.length - 1) % c.options.length;
+      if (tappedDir(1)) c.sel = (c.sel + 1) % c.options.length;
+      if (window.__in && window.__in.pick != null) c.sel = window.__in.pick;
+    }
+    if (I.actP && c.t > 0.15) {
+      if (!done) { c.n = c.text.length; return; }
+      this.cur = null; c.res(c.kind === 'choice' ? c.sel : 0);
+    }
+  },
+};
+let dirPrev = 0;
+function tappedDir(d) { const now = (I.down || I.right ? 1 : 0) - (I.up || I.left ? 1 : 0); const hit = now === d && dirPrev !== d; if (d === 1) dirPrev = now; return hit; }
+
+// run a story scene with the player's controls locked and the camera free to move
+async function cutscene(fn) {
+  if (G.cut) return; G.cut = true;
+  try { await fn(); } catch (e) { console.error(e); }
+  G.cut = false; G.cam.tx = null; G.cam.tz = 1;
+}
+const look = (x, y, z = 1.25) => { G.cam.tx = x; G.cam.ty = y; G.cam.tz = z; };
+
+// ---- interactable things
+const Things = {
+  spawn(L, mark) {
+    const def = L.def, add = e => { G.ents.push(e); return e; };
+    (mark.L || []).forEach((m, i) => add({ type: 'lamp', x: m.x, y: m.y, lit: 0, idx: i, range: 36 }));
+    (mark.q || []).forEach((m, i) => add({ type: 'page', x: m.x, y: m.y - 14, idx: i, got: Save.data.pages.includes(L.n + ':' + i) }));
+    (mark.N || []).forEach((m, i) => add(Object.assign({ type: 'npc', x: m.x, y: m.y, idx: i, range: 46, face: -1 }, def.npcs[i])));
+    (mark.g || []).forEach(m => add({ type: 'cap', plat: true, x: m.tx * TILE - 4, y: m.ty * TILE + 8, w: TILE + 8, open: 0, hold: 0 }));
+    (mark.b || []).forEach((m, i) => add({ type: 'bulb', x: m.x, y: m.y, idx: i, on: 0, range: 34 }));
+    (mark.v || []).forEach((m, i) => add({ type: 'valve', x: m.x, y: m.y - 22, idx: i, pos: 0, spin: 0, range: 36 }));
+    (mark.m || []).forEach((m, i) => add({
+      type: 'mirror', x: m.x, y: m.y - 16, tx: m.tx, ty: m.ty, idx: i,
+      st: (def.mirrorStart || [])[i] || 0, range: 64, turn: 0,
+    }));
+    (mark.e || []).forEach((m, i) => add({ type: 'emitter', x: m.x, y: m.y - 16, tx: m.tx, ty: m.ty, idx: i, dir: def.emitters[i], on: false }));
+    (mark.r || []).forEach((m, i) => add({ type: 'receptor', x: m.x, y: m.y - 16, tx: m.tx, ty: m.ty, idx: i, hit: 0, done: false }));
+    (mark.D || []).forEach((m, i) => { const s = { x: m.tx * TILE + 6, y: (m.ty - 2) * TILE, w: TILE - 12, h: TILE * 3, on: true }; G.solids.push(s); add({ type: 'door', x: m.x, y: m.y, idx: i, solid: s, open: 0, want: 0 }); });
+    (mark.U || []).forEach((m, i) => add({ type: 'lure', x: m.x, y: m.y - 46, idx: i, lit: 0, range: 66 }));
+    (mark.c || []).forEach((m, i) => add({ type: 'chalk', x: m.x, y: m.y - 30, idx: i, a: 0, art: (def.chalk || [])[i] }));
+    (mark.X || []).forEach(m => add({ type: 'exit', x: m.x, y: m.y, range: 30 }));
+    (mark.k || []).forEach((m, i) => add({ type: 'crank', x: m.x, y: m.y, idx: i, done: false, prog: 0, range: 40 }));
+    (mark.B || []).forEach((m, i) => add({ type: 'brazier', x: m.x, y: m.y - 30, idx: i, lit: 0, range: 44, cool: 0 }));
+    for (let d = 1; d <= 9; d++) (mark[d] || []).forEach(m => add({ type: 'trigger', x: m.x, y: m.y, id: d, fired: false }));
+    Enemies.spawn(L, mark);
+  },
+  door(i, open) { const d = G.ents.filter(e => e.type === 'door')[i]; if (d && d.want !== (open ? 1 : 0)) { d.want = open ? 1 : 0; Sfx.open(); G.cam.shake = 5; } },
+  canAct(e, p) {
+    switch (e.type) {
+      case 'lamp': return !e.lit && p.hasLantern && p.snuffed <= 0;
+      case 'npc': return !!e.talk && !e.hidden;
+      case 'bulb': case 'valve': case 'mirror': return !e.locked;
+      case 'lure': case 'brazier': return p.hasLantern && p.snuffed <= 0 && !e.lit && !(e.cool > 0);
+      case 'crank': return !e.done && G.lvl.def.cranksLive;
+      case 'exit': return !G.lvl.def.canExit || G.lvl.def.canExit();
+    }
+    return false;
+  },
+  label(e) { return { lamp: 'Light', npc: 'Talk', bulb: 'Ring', valve: 'Turn', mirror: 'Turn', lure: 'Light', brazier: 'Light', crank: 'Turn (hold still)', exit: G.lvl.def.exitLabel || 'Go on' }[e.type]; },
+  act(e, p) {
+    const def = G.lvl.def;
+    switch (e.type) {
+      case 'lamp': e.lit = 0.01; G.cpIndex = e.idx; Save.data.cp = e.idx; Save.write(); Sfx.lamp(); Fx.spark(e.x, e.y - 40, 14);
+        if (!flag('toldLamp')) { flag('toldLamp', 1); toast('Wayside lamp lit. If something goes wrong, you’ll wake up here.'); } break;
+      case 'npc': cutscene(() => e.talk(e)); break;
+      case 'bulb': def.onBulb(e); break;
+      case 'valve': e.pos = (e.pos + 1) % 3; e.spin = 1; Sfx.clank(); def.onValve && def.onValve(); break;
+      case 'mirror': e.st = 1 - e.st; e.turn = 1; Sfx.mirror(); break;
+      case 'lure': case 'brazier': e.lit = 1; e.burn = 0; Sfx.lamp(); Fx.spark(e.x, e.y, 16); break;
+      case 'crank': e.busy = true; break;
+      case 'exit': def.onExit ? def.onExit() : nextChapter(); break;
+    }
+  },
+  update(dt) {
+    const p = G.player, def = G.lvl.def, pcx = p.x + p.w / 2, pcy = p.y + p.h / 2, lit = Player.lit(p), lp = Player.lanternPos(p);
+    let best = null, bd = 1e9;
+    for (const e of G.ents) {
+      const d = dist(pcx, pcy, e.x, e.y - 14);
+      switch (e.type) {
+        case 'lamp': if (e.lit > 0 && e.lit < 1) e.lit = Math.min(1, e.lit + dt * 1.5); break;
+        case 'page':
+          if (!e.got && d < 26 && !G.cut) { e.got = true; Save.data.pages.push(G.n + ':' + e.idx); Save.write(); Sfx.page(); const pg = def.pages[e.idx]; cutscene(async () => { await Dialog.page(pg[0], pg[1]); pg[2] && await pg[2](); }); }
+          break;
+        case 'cap': {
+          const near = lit && dist(lp.x, lp.y, e.x + e.w / 2, e.y) < 170;
+          if (near) e.hold = 3.2; else e.hold = Math.max(0, e.hold - dt);
+          const want = e.hold > 0 ? 1 : 0; e.open += (want - e.open) * Math.min(1, dt * (want ? 5 : 3));
+          break; }
+        case 'bulb': e.on = Math.max(0, e.on - dt * 0.0); break;
+        case 'valve': e.spin = Math.max(0, e.spin - dt * 2.5); break;
+        case 'mirror': e.turn = Math.max(0, e.turn - dt * 4); break;
+        case 'door': e.open += (e.want - e.open) * Math.min(1, dt * 1.6); e.solid.on = e.open < 0.6; break;
+        case 'chalk': { const want = lit && dist(lp.x, lp.y, e.x, e.y) < 150 ? 1 : 0; e.a += (want - e.a) * Math.min(1, dt * (want ? 2.2 : 1.2)); if (e.a > 0.6 && !e.seen) { e.seen = true; def.onChalk && def.onChalk(e); } break; }
+        case 'lure': if (e.lit) e.burn = (e.burn || 0) + dt; break;
+        case 'brazier': e.cool = Math.max(0, (e.cool || 0) - dt); break;
+        case 'crank':
+          if (e.busy) {
+            if (d > 44 || p.stun > 0 || Math.abs(p.vx) > 40) { e.busy = false; e.prog = Math.max(0, e.prog - 0.15); }
+            else { e.prog += dt / 2.2; if (Math.random() < dt * 10) Sfx.noise(0.04, 0.05, 1500, 6); if (e.prog >= 1) { e.done = true; e.busy = false; Sfx.mirror(); Sfx.open(); def.onCrank(e); } }
+          }
+          break;
+        case 'trigger': if (!e.fired && !G.cut && Math.abs(pcx - e.x) < 20 && Math.abs(pcy - (e.y - 16)) < 110) { e.fired = true; def.triggers[e.id] && def.triggers[e.id](e); } break;
+        case 'receptor': e.hit = Math.max(0, e.hit - dt * 3); break;
+      }
+      if (!G.cut && e.range && d < e.range && d < bd && this.canAct(e, p)) { best = e; bd = d; }
+    }
+    G.prompt = best;
+    if (best && I.actP && !G.cut && !Dialog.cur) this.act(best, p);
+    this.traceBeams(dt);
+  },
+  // light beams: follow each emitter cell by cell, bouncing off mirrors, until a wall or a receptor
+  traceBeams(dt) {
+    G.beams = [];
+    const mirrors = {}, recs = {};
+    for (const e of G.ents) { if (e.type === 'mirror') mirrors[e.tx + ',' + e.ty] = e; if (e.type === 'receptor') recs[e.tx + ',' + e.ty] = e; }
+    for (const em of G.ents) {
+      if (em.type !== 'emitter' || !em.on) continue;
+      let x = em.tx, y = em.ty, [dx, dy] = em.dir; const pts = [[em.x, em.y]];
+      for (let i = 0; i < 80; i++) {
+        x += dx; y += dy;
+        const cx = x * TILE + TILE / 2, cy = y * TILE + TILE / 2;
+        if (SOLID[tileAt(x, y)] || solidAt(cx, cy)) { pts.push([cx - dx * TILE / 2, cy - dy * TILE / 2]); break; }
+        const r = recs[x + ',' + y]; if (r) { pts.push([cx, cy]); r.hit = 1; if (!r.done) { r.done = true; G.lvl.def.onReceptor && G.lvl.def.onReceptor(r); } break; }
+        const m = mirrors[x + ',' + y];
+        if (m) {
+          pts.push([cx, cy]);
+          if (m.st === 0) [dx, dy] = [-dy, -dx];   // a '/' mirror: swap and flip
+          else [dx, dy] = [dy, dx];                // a '\' mirror: just swap
+        }
+        if (i === 79) pts.push([cx, cy]);
+      }
+      G.beams.push(pts);
+    }
+  },
+};
+function nextChapter() {
+  if (G.leaving) return; G.leaving = true;
+  fadeTo(() => { G.leaving = false; Save.data.cp = null; startChapter(G.n + 1); });
+}
+
+// ---------------------------------------------------------------- enemies: each one wants light, in its own way
+const Enemies = {
+  spawn(L, mark) {
+    const def = L.def, add = e => { G.ents.push(e); return e; };
+    (mark.S || []).forEach(m => add({ type: 'snuff', hx: m.x, hy: m.y - TILE + 10, x: m.x, y: m.y - TILE + 10, st: 'roost', t: 0, flap: Math.random() * 6,
+      reset() { this.x = this.hx; this.y = this.hy; this.st = 'roost'; this.t = 0; } }));
+    (mark.M || []).forEach(m => { const w = G.water.find(w => m.x >= w.x && m.x < w.x + w.w && m.y > w.y) || G.water[0];
+      add({ type: 'mire', w, x: m.x, y: w.surf() + 26, hx: m.x, st: 'swim', t: Math.random() * 5, cool: 0, vy: 0, dir: 1, reset() { this.st = 'swim'; this.x = this.hx; this.cool = 1; } }); });
+    (mark.W || []).forEach((m, i) => { const r = (def.wardens || [])[i] || {};
+      add({ type: 'warden', x: m.x, y: m.y, hx: m.x, a: (r.a != null ? r.a : m.tx - 5) * TILE, b: (r.b != null ? r.b : m.tx + 5) * TILE + TILE, dir: 1, st: 'patrol', t: 0, roll: 0, seen: 0,
+        reset() { this.x = this.hx; this.st = 'patrol'; this.t = 0; this.lamp = null; } }); });
+    (mark.O || []).forEach(m => add({ type: 'umbra', x: m.x, y: m.y - 120, hx: m.x, hy: m.y - 150, st: 'wait', t: 0, flap: 0, gold: 0, tx: m.x, ty: m.y - 150, cool: 2, vx: 0, vy: 0 }));
+  },
+  update(dt) {
+    const p = G.player, lit = Player.lit(p), lp = Player.lanternPos(p), pcx = p.x + p.w / 2, pcy = p.y + p.h / 2;
+    for (const e of G.ents) {
+      if (e.type === 'snuff') this.snuff(e, dt, p, lit, lp);
+      else if (e.type === 'mire') this.mire(e, dt, p, lit, lp, pcx, pcy);
+      else if (e.type === 'warden') this.warden(e, dt, p, lit, pcx, pcy);
+      else if (e.type === 'umbra') this.umbra(e, dt, p, lit, lp, pcx, pcy);
+    }
+  },
+  // Snuff: sleeps on the ceiling. A lit lantern in view wakes it; it dives and puts the lantern out. Hooded, you're invisible to it.
+  snuff(e, dt, p, lit, lp) {
+    e.t += dt; e.flap += dt * (e.st === 'roost' ? 2 : 22);
+    const d = dist(e.x, e.y, lp.x, lp.y);
+    if (e.st === 'roost') {
+      // it only wakes for a lit lantern it can actually see
+      const seen = lit && d < 250 && los(e.x, e.y + 6, lp.x, lp.y);
+      if (seen && !G.cut) { e.st = 'wake'; e.t = 0; Sfx.wing(); }
+    }
+    else if (e.st === 'wake') { if (e.t > 0.45) { e.st = 'dive'; e.t = 0; e.gx = lp.x; e.gy = lp.y; } }
+    else if (e.st === 'dive') {
+      if (lit) { e.gx = lp.x; e.gy = lp.y; }           // keeps homing only while it can see the light
+      const dd = dist(e.x, e.y, e.gx, e.gy) || 1; e.x += (e.gx - e.x) / dd * 330 * dt; e.y += (e.gy - e.y) / dd * 330 * dt;
+      if (lit && d < 16) { p.snuffed = 2.8; p.stun = 0.25; p.vx = Math.sign(p.x - e.x || 1) * 120; Sfx.snuff(); Fx.spark(lp.x, lp.y, 10, [180, 170, 200]); G.cam.shake = 6; e.st = 'back'; if (!flag('toldSnuff')) { flag('toldSnuff', 1); toast('A Snuff put your lantern out. It will catch again in a moment. Hooded, they can’t see you.'); } }
+      else if (dd < 10 || e.t > 1.8) e.st = 'back';
+    } else { const dd = dist(e.x, e.y, e.hx, e.hy); if (dd < 6) { e.st = 'roost'; e.x = e.hx; e.y = e.hy; } else { e.x += (e.hx - e.x) / dd * 170 * dt; e.y += (e.hy - e.y) / dd * 170 * dt; } }
+  },
+  // Mireling: follows light along under the surface and leaps at it. A lit lure lamp draws it away.
+  mire(e, dt, p, lit, lp, pcx, pcy) {
+    const w = e.w, surf = w.surf(); e.t += dt; e.cool = Math.max(0, e.cool - dt);
+    if (w.drain > 0.5) { e.st = 'gone'; return; }
+    if (e.st === 'swim') {
+      let tx = e.hx + Math.sin(e.t * 0.5) * Math.min(90, w.w / 3), chasing = false;
+      const lure = G.ents.find(l => l.type === 'lure' && l.lit && Math.abs(l.x - (w.x + w.w / 2)) < w.w / 2 + 200);
+      if (lure) { tx = lure.x; chasing = true; }
+      else if (lit && lp.x > w.x - 60 && lp.x < w.x + w.w + 60 && lp.y < surf + 20 && lp.y > surf - 170) { tx = lp.x; chasing = true; }
+      tx = clamp(tx, w.x + 22, w.x + w.w - 22);
+      const dx = tx - e.x; e.dir = Math.sign(dx) || e.dir; e.x += clamp(dx, -1, 1) * (chasing ? 130 : 45) * dt * Math.min(1, Math.abs(dx) / 6);
+      e.y = surf + 24 + Math.sin(e.t * 2) * 3; e.chasing = chasing;
+      if (!lure && lit && !G.cut && e.cool <= 0 && Math.abs(lp.x - e.x) < 30 && lp.y > surf - 150) { e.st = 'leap'; e.vy = -Math.sqrt(2 * 1100 * Math.max(60, surf - lp.y + 30)); Sfx.splash(); Fx.splash(e.x, surf); }
+    } else if (e.st === 'leap') {
+      e.vy += 1100 * dt; e.y += e.vy * dt;
+      if (dist(e.x, e.y, pcx, pcy) < 24 && !G.dying) respawn('Something in the water wanted your light. Try crossing hooded.');
+      if (e.y > surf + 24 && e.vy > 0) { e.st = 'swim'; e.cool = 1.4; Fx.splash(e.x, surf); Sfx.splash(); }
+    }
+  },
+  // Warden: clockwork patrol. Sees a lit lantern from far off, a hooded one only up close. Leaves its post to snuff any big lamp left burning.
+  warden(e, dt, p, lit, pcx, pcy) {
+    e.t += dt; const dx = pcx - e.x, dy = pcy - (e.y - 26);
+    const facing = Math.sign(dx) === e.dir, sees = !G.cut && facing && Math.abs(dy) < 58 && Math.abs(dx) < (lit ? 240 : 66) && los(e.x, e.y - 40, pcx, pcy);
+    const walk = (speed) => { const nx = e.x + e.dir * speed * dt; if (solidAt(nx + e.dir * 14, e.y - 20) || !solidAt(nx + e.dir * 10, e.y + 6)) return false; e.x = nx; e.roll += speed * dt / 9; return true; };
+    if (e.st === 'patrol' || e.st === 'tend' || e.st === 'snuffing') {
+      if (sees && (e.st === 'patrol' || Math.abs(dx) < 70)) { e.st = 'alert'; e.t = 0; Sfx.alert(); return; }
+    }
+    if (e.st === 'patrol') {
+      const lure = G.ents.find(l => l.type === 'lure' && l.lit && Math.abs(l.x - e.x) < 460 && Math.abs(l.y + 46 - e.y) < 50);
+      if (lure) { e.st = 'tend'; e.lamp = lure; return; }
+      if (e.x > e.b) e.dir = -1; else if (e.x < e.a) e.dir = 1;
+      if (!walk(55)) e.dir *= -1;
+    } else if (e.st === 'tend') {
+      e.dir = Math.sign(e.lamp.x - e.x) || 1;
+      if (Math.abs(e.lamp.x - e.x) < 22) { e.st = 'snuffing'; e.t = 0; } else if (!walk(95)) { e.st = 'patrol'; }
+    } else if (e.st === 'snuffing') {
+      if (e.t > 4.5) { e.lamp.lit = 0; Sfx.snuff(); e.st = 'patrol'; e.lamp = null; }
+    } else if (e.st === 'alert') {
+      e.dir = Math.sign(dx) || e.dir; if (e.t > 0.5) { e.st = 'chase'; e.t = 0; e.lost = 0; }
+    } else if (e.st === 'chase') {
+      e.dir = Math.sign(dx) || e.dir; walk(205);
+      const visible = Math.abs(dy) < 70 && Math.abs(dx) < 300 && (lit || Math.abs(dx) < 90) && los(e.x, e.y - 40, pcx, pcy);
+      e.lost = visible ? 0 : e.lost + dt;
+      if (Math.abs(dx) < 20 && Math.abs(dy) < 44 && !G.dying) { respawn('A warden put you out and carried you back to the last lamp.'); e.st = 'patrol'; }
+      else if (e.lost > 1.3) e.st = 'patrol';
+    }
+  },
+  // Umbra: the great dusk-moth. Goes to the brightest thing: a lit brazier, then a lit lantern, then the Heartflame itself.
+  umbra(e, dt, p, lit, lp, pcx, pcy) {
+    const def = G.lvl.def; e.t += dt; e.flap += dt * (e.st === 'swoop' ? 16 : 9); e.cool = Math.max(0, e.cool - dt);
+    const fly = (tx, ty, sp) => { const d = dist(e.x, e.y, tx, ty) || 1; const s = Math.min(sp * dt, d); e.x += (tx - e.x) / d * s; e.y += (ty - e.y) / d * s; return d < 12; };
+    if (Math.random() < dt * 14) Fx.add({ x: e.x + (Math.random() - 0.5) * 120, y: e.y + 20, vy: 30, vx: (Math.random() - 0.5) * 20, life: 1.4, size: 1.5, col: e.gold > 0.5 ? [255, 220, 150] : [170, 150, 200], a: 0.5 });
+    if (e.st === 'wait' || e.st === 'calm') { e.y = e.hy + Math.sin(e.t * 1.3) * 10; if (e.st === 'calm') { e.gold = Math.min(1, e.gold + dt * 0.5); fly(def.lens.x, def.lens.y - 90, 60); } return; }
+    const done = G.ents.filter(c => c.type === 'crank' && c.done).length;
+    const brz = G.ents.filter(b => b.type === 'brazier' && b.lit).sort((a, b) => dist(e.x, e.y, a.x, a.y) - dist(e.x, e.y, b.x, b.y))[0];
+    if (e.st === 'hunt') {
+      if (brz) { e.st = 'tobrazier'; e.target = brz; }
+      else if (lit && e.cool <= 0) { e.st = 'aim'; e.t = 0; Sfx.wing(); }
+      else if (!lit) { e.st = 'toflame'; }
+      else fly(e.hx + Math.sin(e.t * 0.7) * 260, e.hy + Math.sin(e.t * 1.1) * 30, 150);
+    } else if (e.st === 'tobrazier') {
+      if (!e.target.lit) { e.st = 'hunt'; return; }
+      if (fly(e.target.x, e.target.y - 50, 230)) { e.st = 'batter'; e.t = 0; }
+    } else if (e.st === 'batter') {
+      e.x = e.target.x + Math.sin(e.t * 9) * 16; e.y = e.target.y - 50 + Math.cos(e.t * 7) * 8;
+      if (Math.random() < dt * 6) Fx.spark(e.target.x, e.target.y, 2);
+      const hold = (flag('fiddleAlly') ? 8.5 : 6) - done * 0.8;
+      if (e.t > hold) { e.target.lit = 0; e.target.cool = 5; Sfx.snuff(); e.st = 'hunt'; e.cool = 1.2; }
+    } else if (e.st === 'aim') {
+      fly(clamp(pcx - Math.sign(pcx - e.x || 1) * 200, 80, G.lvl.w * TILE - 80), pcy - 150, 200);
+      if (brz) { e.st = 'tobrazier'; e.target = brz; } else if (!lit) e.st = 'hunt';
+      else if (e.t > 1.0) { e.st = 'swoop'; e.t = 0; const d = dist(e.x, e.y, pcx, pcy) || 1; e.vx = (pcx - e.x) / d * 440; e.vy = (pcy - e.y) / d * 440; Sfx.roar(); }
+    } else if (e.st === 'swoop') {
+      e.x += e.vx * dt; e.y += e.vy * dt;
+      if (dist(e.x, e.y, pcx, pcy) < 40 && p.stun <= 0) { p.snuffed = 3; p.stun = 0.5; p.vx = Math.sign(e.vx || 1) * 260; p.vy = -220; Sfx.snuff(); G.cam.shake = 12; Fx.spark(pcx, pcy, 14, [190, 170, 220]); }
+      if (e.t > 0.9) { e.st = 'hunt'; e.cool = 2.2; }
+    } else if (e.st === 'toflame') {
+      if (brz) { e.st = 'tobrazier'; e.target = brz; return; }
+      if (lit && e.cool <= 0) { e.st = 'aim'; e.t = 0; Sfx.wing(); return; }
+      const f = def.flamePos; const at = fly(f.x + Math.sin(e.t * 8) * 14, f.y - 46, 190);
+      if (dist(e.x, e.y, f.x, f.y - 46) < 40) { def.flame = Math.max(0, def.flame - 9 * dt); if (Math.random() < dt * 5) Fx.spark(f.x, f.y - 10, 2); if (def.flame <= 0 && !G.dying) def.onFlameOut(); }
+    }
+  },
+};
+
+// ---------------------------------------------------------------- render: backgrounds, tiles, water, fog, and the frame itself
+const THEME = {
+  hollow: { sky: ['#0c0919', '#1c1335'], rock: [40, 30, 66], hi: [96, 76, 140], top: [122, 98, 170], fog: [130, 105, 200], tint: [5, 3, 14], amb: 0.72, brick: false, mote: [200, 170, 255] },
+  roots:  { sky: ['#07110f', '#10241f'], rock: [38, 44, 40], hi: [70, 96, 78], top: [88, 140, 96], fog: [90, 170, 140], tint: [2, 7, 6], amb: 0.74, brick: false, mote: [160, 240, 190] },
+  works:  { sky: ['#080d14', '#141f2c'], rock: [44, 50, 60], hi: [86, 98, 112], top: [120, 104, 84], fog: [100, 140, 180], tint: [2, 5, 9], amb: 0.74, brick: true, mote: [170, 200, 230] },
+  tower:  { sky: ['#0a0c16', '#1a1d30'], rock: [58, 56, 68], hi: [104, 102, 120], top: [130, 126, 144], fog: [150, 160, 200], tint: [4, 5, 11], amb: 0.72, brick: true, mote: [220, 220, 240] },
+  lamp:   { sky: ['#05060d', '#141826'], rock: [52, 52, 64], hi: [100, 100, 118], top: [128, 126, 142], fog: [160, 170, 210], tint: [4, 5, 11], amb: 0.7, brick: true, mote: [230, 230, 250] },
+};
+const Render = {
+  layer: null, K: 1, bgFar: null, bgMid: null, fog: null, motes: [],
+  worldTransform(c, k) {
+    const z = SC * G.cam.zoom * k, sh = G.cam.shake;
+    const ox = sh ? (Math.random() - 0.5) * sh : 0, oy = sh ? (Math.random() - 0.5) * sh : 0;
+    c.setTransform(z, 0, 0, z, cv.width * k / 2 - (G.cam.x + ox) * z, cv.height * k / 2 - (G.cam.y + oy) * z);
+  },
+  buildLevel(L) {
+    const th = THEME[L.def.theme], r = rng(L.n * 131 + 7);
+    const K = this.K = Math.min(2, Math.sqrt(14e6 / (L.w * TILE * L.h * TILE)));
+    const c = this.layer = document.createElement('canvas'); c.width = Math.ceil(L.w * TILE * K); c.height = Math.ceil(L.h * TILE * K);
+    const g = c.getContext('2d'); g.scale(K, K);
+    const S = (x, y) => SOLID[tileAt(x, y)];
+    const shade = (col, k) => `rgb(${col.map(v => clamp(v * k, 0, 255) | 0).join(',')})`;
+    for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
+      const t = L.tiles[y][x], px = x * TILE, py = y * TILE;
+      if (t === '#') {
+        const depth = (S(x, y - 1) ? 1 : 0) + (S(x, y + 1) ? 1 : 0) + (S(x - 1, y) ? 1 : 0) + (S(x + 1, y) ? 1 : 0);
+        g.fillStyle = shade(th.rock, depth === 4 ? 0.6 + r() * 0.03 : 0.94 + r() * 0.12); g.fillRect(px, py, TILE + 0.5, TILE + 0.5);
+        if (th.brick && depth < 4) { g.strokeStyle = 'rgba(0,0,0,0.28)'; g.lineWidth = 1; for (let k = 0; k < 2; k++) { const yy = py + k * 16 + 0.5; g.beginPath(); g.moveTo(px, yy); g.lineTo(px + TILE, yy); g.moveTo(px + (k ? 8 : 24), yy); g.lineTo(px + (k ? 8 : 24), yy + 16); g.stroke(); } }
+        else for (let k = 0; k < 3; k++) { g.fillStyle = `rgba(255,255,255,${0.02 + r() * 0.03})`; g.fillRect(px + r() * 26, py + r() * 26, 3 + r() * 6, 2 + r() * 4); }
+        if (!S(x, y - 1)) { g.fillStyle = shade(th.top, 1); g.fillRect(px, py, TILE + 0.5, 4); g.fillStyle = shade(th.top, 0.7); g.fillRect(px, py + 4, TILE + 0.5, 2);
+          if (!th.brick) for (let k = 0; k < 3; k++) if (r() < 0.6) { const tx = px + 3 + r() * 26; g.strokeStyle = shade(th.top, 1.15); g.lineWidth = 1.4; g.beginPath(); g.moveTo(tx, py); g.quadraticCurveTo(tx + (r() - 0.5) * 6, py - 5, tx + (r() - 0.5) * 9, py - 6 - r() * 5); g.stroke(); } }
+        if (!S(x - 1, y)) { g.fillStyle = shade(th.hi, 0.9); g.fillRect(px, py, 2, TILE); }
+        if (!S(x + 1, y)) { g.fillStyle = shade(th.rock, 0.5); g.fillRect(px + TILE - 2, py, 2, TILE); }
+        if (!S(x, y + 1)) { g.fillStyle = shade(th.rock, 0.45); g.fillRect(px, py + TILE - 3, TILE + 0.5, 3);
+          if (!th.brick && r() < 0.45 && tileAt(x, y + 1) === ' ') { const hh = 8 + r() * 22, tx = px + 6 + r() * 20; g.fillStyle = shade(th.rock, 0.8); g.beginPath(); g.moveTo(tx - 5, py + TILE); g.lineTo(tx + 5, py + TILE); g.lineTo(tx + (r() - 0.5) * 3, py + TILE + hh); g.fill(); }
+          if (L.def.theme === 'roots' && r() < 0.3 && tileAt(x, y + 1) === ' ') { g.strokeStyle = 'rgba(96,150,104,0.7)'; g.lineWidth = 1.5; const len = 20 + r() * 60, tx = px + 8 + r() * 16; g.beginPath(); g.moveTo(tx, py + TILE); g.bezierCurveTo(tx + 6, py + TILE + len * 0.4, tx - 6, py + TILE + len * 0.7, tx + 2, py + TILE + len); g.stroke(); }
+          if (th.brick && r() < 0.12 && tileAt(x, y + 1) === ' ') { g.strokeStyle = 'rgba(120,128,140,0.7)'; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(px + 16, py + TILE); g.lineTo(px + 16, py + TILE + 30 + r() * 50); g.stroke(); g.setLineDash([]); } }
+      } else if (t === '=') {
+        g.fillStyle = L.def.theme === 'roots' ? '#5a4a34' : '#6a5a48'; g.fillRect(px, py, TILE + 0.5, 7); g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(px, py, TILE + 0.5, 2);
+        g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(px, py + 7, TILE + 0.5, 2); g.fillRect(px + 15, py, 1, 7);
+      } else if (t === 'H') {
+        if (L.def.theme === 'roots' || L.def.theme === 'hollow') { g.strokeStyle = '#4f7a55'; g.lineWidth = 3; g.beginPath(); g.moveTo(px + 16, py); g.bezierCurveTo(px + 22, py + 10, px + 10, py + 22, px + 16, py + TILE); g.stroke();
+          g.fillStyle = '#6fa873'; for (let k = 0; k < 2; k++) { g.beginPath(); g.ellipse(px + (k ? 22 : 10), py + 8 + k * 14, 5, 2.5, k ? 0.5 : -0.5, 0, 7); g.fill(); } }
+        else { g.strokeStyle = '#7d705e'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(px + 8, py); g.lineTo(px + 8, py + TILE); g.moveTo(px + 24, py); g.lineTo(px + 24, py + TILE); g.stroke(); g.lineWidth = 2; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(px + 8, py + 5 + k * 11); g.lineTo(px + 24, py + 5 + k * 11); g.stroke(); } }
+      } else if (t === '^') {
+        g.fillStyle = L.def.theme === 'roots' ? '#7a3f52' : '#8a8f9a';
+        for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(px + k * 8, py + TILE); g.lineTo(px + k * 8 + 4, py + 12 + r() * 6); g.lineTo(px + k * 8 + 8, py + TILE); g.fill(); }
+      }
+    }
+    this.buildBackdrop(L.def.theme, L.n);
+    // drifting fog texture
+    if (!this.fog) { const f = this.fog = document.createElement('canvas'); f.width = 512; f.height = 256; const fg = f.getContext('2d'), fr = rng(99);
+      for (let i = 0; i < 46; i++) { const x = fr() * 512, y = fr() * 256, rad = 40 + fr() * 70; for (const ox of [-512, 0, 512]) { const gr = fg.createRadialGradient(x + ox, y, 0, x + ox, y, rad); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); fg.fillStyle = gr; fg.fillRect(x + ox - rad, y - rad, rad * 2, rad * 2); } } }
+    this.motes = Array.from({ length: 46 }, () => ({ x: Math.random() * 1200, y: Math.random() * VH, s: 0.8 + Math.random() * 1.6, v: 4 + Math.random() * 10, p: Math.random() * 6 }));
+  },
+  buildBackdrop(theme, n) {
+    const th = THEME[theme], r = rng(n * 53 + 1), mk = () => { const c = document.createElement('canvas'); c.width = 1600; c.height = 540; return c; };
+    const far = this.bgFar = mk(), mid = this.bgMid = mk(), f = far.getContext('2d'), m = mid.getContext('2d');
+    const col = (k, a) => `rgba(${th.rock.map(v => v * k | 0).join(',')},${a})`;
+    if (theme === 'hollow' || theme === 'roots') {
+      for (let i = 0; i < 26; i++) { const x = r() * 1600, w = 30 + r() * 90, h = 60 + r() * 220; f.fillStyle = col(0.55, 0.9); f.beginPath(); f.moveTo(x - w / 2, 0); f.lineTo(x + w / 2, 0); f.lineTo(x + (r() - 0.5) * 10, h); f.fill(); f.beginPath(); f.moveTo(x - w / 2 + 40, 540); f.lineTo(x + w / 2 + 40, 540); f.lineTo(x + 40, 540 - h * 0.7); f.fill(); }
+      if (theme === 'hollow') for (let i = 0; i < 40; i++) { const x = r() * 1600, y = 150 + r() * 260; const gr = f.createRadialGradient(x, y, 0, x, y, 14); gr.addColorStop(0, 'rgba(255,200,120,0.5)'); gr.addColorStop(1, 'rgba(255,200,120,0)'); f.fillStyle = gr; f.fillRect(x - 14, y - 14, 28, 28); }
+      if (theme === 'roots') { f.strokeStyle = col(0.75, 0.9); f.lineCap = 'round'; for (let i = 0; i < 14; i++) { f.lineWidth = 14 + r() * 40; const x = r() * 1600; f.beginPath(); f.moveTo(x, -20); f.bezierCurveTo(x + 200 * (r() - 0.5), 180, x + 300 * (r() - 0.5), 360, x + 400 * (r() - 0.5), 560); f.stroke(); } }
+      for (let i = 0; i < 16; i++) { const x = r() * 1600, w = 50 + r() * 120, h = 100 + r() * 260; m.fillStyle = col(0.4, 0.95); m.beginPath(); m.moveTo(x - w / 2, 0); m.lineTo(x + w / 2, 0); m.lineTo(x, h); m.fill(); }
+      if (theme === 'roots') { m.strokeStyle = col(0.5, 0.95); m.lineCap = 'round'; for (let i = 0; i < 22; i++) { m.lineWidth = 3 + r() * 8; const x = r() * 1600, len = 80 + r() * 300; m.beginPath(); m.moveTo(x, -10); m.bezierCurveTo(x + 30, len * 0.3, x - 30, len * 0.7, x + 10, len); m.stroke(); } }
+    } else if (theme === 'works') {
+      for (let i = 0; i < 9; i++) { const x = i * 180 + r() * 40; f.fillStyle = col(0.6, 0.9); f.fillRect(x, 120, 26, 420); f.beginPath(); f.arc(x + 103, 150, 90, Math.PI, 0); f.lineTo(x + 193, 120); f.lineTo(x + 13, 120); f.fill(); }
+      for (let i = 0; i < 6; i++) { const x = r() * 1600, y = 260 + r() * 120, w = 90 + r() * 80; f.fillStyle = col(0.72, 0.9); f.beginPath(); f.roundRect(x, y, w, 300, 30); f.fill(); f.fillStyle = col(0.5, 0.9); f.fillRect(x + 10, y + 40, w - 20, 5); }
+      m.strokeStyle = col(0.42, 0.95); for (let i = 0; i < 10; i++) { m.lineWidth = 8 + r() * 14; const y = 40 + r() * 460; m.beginPath(); m.moveTo(-10, y); m.lineTo(1610, y + (r() - 0.5) * 30); m.stroke(); }
+      for (let i = 0; i < 7; i++) { const x = r() * 1600, y = 100 + r() * 300, rad = 30 + r() * 50; m.lineWidth = 9; m.beginPath(); m.arc(x, y, rad, 0, 7); m.stroke(); for (let k = 0; k < 8; k++) { m.beginPath(); m.moveTo(x, y); m.lineTo(x + Math.cos(k * 0.785) * rad, y + Math.sin(k * 0.785) * rad); m.lineWidth = 3; m.stroke(); } }
+    } else {
+      f.fillStyle = col(0.5, 0.95); f.fillRect(0, 0, 1600, 540);
+      f.strokeStyle = 'rgba(0,0,0,0.25)'; for (let y = 0; y < 540; y += 22) { f.beginPath(); f.moveTo(0, y); f.lineTo(1600, y); f.stroke(); for (let x = (y / 22 % 2) * 30; x < 1600; x += 60) { f.beginPath(); f.moveTo(x, y); f.lineTo(x, y + 22); f.stroke(); } }
+      for (let i = 0; i < 5; i++) { const x = 160 + i * 320, gr = f.createLinearGradient(0, 120, 0, 400); gr.addColorStop(0, '#1a2440'); gr.addColorStop(1, '#0b0f1e'); f.fillStyle = gr; f.beginPath(); f.moveTo(x - 50, 400); f.lineTo(x - 50, 190); f.arc(x, 190, 50, Math.PI, 0); f.lineTo(x + 50, 400); f.fill();
+        f.fillStyle = 'rgba(200,210,255,0.5)'; for (let k = 0; k < 9; k++) f.fillRect(x - 40 + r() * 80, 160 + r() * 200, 1.5, 1.5); f.strokeStyle = col(0.3, 1); f.lineWidth = 5; f.beginPath(); f.moveTo(x, 140); f.lineTo(x, 400); f.moveTo(x - 50, 270); f.lineTo(x + 50, 270); f.stroke(); }
+      m.strokeStyle = col(0.36, 0.95); m.lineWidth = 16; for (let i = 0; i < 6; i++) { const x = i * 300 + r() * 60; m.beginPath(); m.moveTo(x, 560); m.lineTo(x + 260, 300 - r() * 100); m.stroke(); m.lineWidth = 8; m.beginPath(); m.moveTo(x + 130, 0); m.lineTo(x + 130, 540); m.stroke(); m.lineWidth = 16; }
+    }
+  },
+  frame() {
+    const L = G.lvl, def = L.def, th = THEME[def.theme], c = G.cam, p = G.player;
+    // ---- sky and parallax (screen space)
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const sky = ctx.createLinearGradient(0, 0, 0, cv.height); sky.addColorStop(0, th.sky[0]); sky.addColorStop(1, th.sky[1]); ctx.fillStyle = sky; ctx.fillRect(0, 0, cv.width, cv.height);
+    if (def.drawSky) { ctx.setTransform(SC, 0, 0, SC, 0, 0); def.drawSky(ctx, VW, VH); }
+    else for (const [img, k, a] of [[this.bgFar, 0.18, 0.9], [this.bgMid, 0.42, 0.9]]) {
+      ctx.setTransform(SC, 0, 0, SC, 0, 0); ctx.globalAlpha = a;
+      const off = -((c.x * k) % 1600), oy = -(c.y - L.h * TILE / 2) * k * 0.3;
+      for (let x = off - 1600; x < VW; x += 1600) ctx.drawImage(img, x, oy);
+      ctx.globalAlpha = 1;
+    }
+    // ---- world
+    this.worldTransform(ctx, 1);
+    def.draw && def.draw('back');
+    ctx.drawImage(this.layer, 0, 0, L.w * TILE, L.h * TILE);
+    for (const e of G.ents) Draw.back(e);
+    def.draw && def.draw('mid');
+    for (const e of G.ents) Draw.ent(e);
+    Player.draw(p);
+    Fx.draw(false);
+    this.drawWater();
+    // motes and fog sit in the air, so they only show where light reaches
+    ctx.fillStyle = rgba(th.mote, 0.5);
+    const vx0 = c.x - VW / 2 / c.zoom, vy0 = c.y - VH / 2 / c.zoom;
+    for (const m of this.motes) { const x = vx0 + ((m.x - c.x * 0.6 + Math.sin(G.t * 0.4 + m.p) * 14) % 1200 + 1200) % 1200 - 100, y = vy0 + ((m.y - G.t * m.v) % VH + VH) % VH; ctx.beginPath(); ctx.arc(x, y, m.s, 0, 7); ctx.fill(); }
+    ctx.globalCompositeOperation = 'screen';
+    for (const [k, sp, a] of [[0.7, 9, 0.2], [1.15, -14, 0.13]]) {
+      ctx.globalAlpha = a * (def.fog == null ? 1 : def.fog);
+      const fw = 1024, fh = 512, ox = -(((c.x * k + G.t * sp) % fw) + fw) % fw, oy = -(((c.y * k * 0.5) % fh) + fh) % fh;
+      for (let x = ox; x < VW / c.zoom + fw; x += fw) for (let y = oy; y < VH / c.zoom + fh; y += fh) ctx.drawImage(this.fog, vx0 + x, vy0 + y, fw, fh);
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    def.draw && def.draw('front');
+    // ---- lights
+    Light.begin();
+    const lp = Player.lanternPos(p), lit = Player.lit(p);
+    if (lit) Light.add(lp.x, lp.y, 255 + Math.sin(G.t * 9) * 3, [255, 190, 110], 1);
+    else Light.add(p.x + p.w / 2, p.y + 8, 118, [140, 130, 220], 0.62, false);   // Nib was born dark: she sees a little without any light
+    if (p.glow > 0) Light.add(p.x + p.w / 2, p.y + 14, 150 * p.glow, [255, 214, 130], p.glow, false);
+    for (const e of G.ents) Draw.light(e);
+    for (const b of G.beams || []) for (let i = 1; i < b.length; i++) { const [x0, y0] = b[i - 1], [x1, y1] = b[i], n = Math.ceil(dist(x0, y0, x1, y1) / 56); for (let k = 0; k <= n; k++) Light.add(lerp(x0, x1, k / n), lerp(y0, y1, k / n), 74, [255, 240, 200], 0.6, false); }
+    for (const l of def.lights ? def.lights() : []) Light.add(l.x, l.y, l.r, l.col, l.k == null ? 1 : l.k, l.shadow !== false, l.key);
+    const amb = def.ambient ? def.ambient() : th.amb;
+    Light.render(amb, th.tint);
+    // ---- things that shine through the dark
+    this.worldTransform(ctx, 1);
+    ctx.globalCompositeOperation = 'lighter'; Fx.draw(true);
+    for (const b of G.beams || []) { for (const [w, a] of [[9, 0.12], [4, 0.3], [1.5, 0.9]]) { ctx.strokeStyle = `rgba(255,244,210,${a})`; ctx.lineWidth = w; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(b[0][0], b[0][1]); for (let i = 1; i < b.length; i++) ctx.lineTo(b[i][0], b[i][1]); ctx.stroke(); } }
+    for (const ry of def.rays ? def.rays() : []) { const g = ctx.createLinearGradient(ry.x, ry.y, ry.x + ry.dx, ry.y + ry.h); g.addColorStop(0, rgba(ry.col, ry.a)); g.addColorStop(1, rgba(ry.col, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(ry.x - ry.w / 2, ry.y); ctx.lineTo(ry.x + ry.w / 2, ry.y); ctx.lineTo(ry.x + ry.dx + ry.w * 1.3, ry.y + ry.h); ctx.lineTo(ry.x + ry.dx - ry.w * 1.3, ry.y + ry.h); ctx.fill(); }
+    ctx.globalCompositeOperation = 'source-over';
+    for (const e of G.ents) Draw.glow(e);
+    def.draw && def.draw('glow');
+    if (G.prompt && !G.cut) Draw.prompt(G.prompt);
+    // fade
+    if (G.fade > 0) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(4,3,9,${G.fade})`; ctx.fillRect(0, 0, cv.width, cv.height); }
+  },
+  drawWater() {
+    for (const w of G.water) {
+      const s = w.surf(); if (w.drain >= 0.98) continue;
+      const g = ctx.createLinearGradient(0, s, 0, w.y + w.h); g.addColorStop(0, 'rgba(60,150,170,0.42)'); g.addColorStop(1, 'rgba(14,40,70,0.82)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(w.x, w.y + w.h); ctx.lineTo(w.x, s);
+      for (let x = 0; x <= w.w; x += 8) ctx.lineTo(w.x + x, s + Math.sin(x * 0.08 + G.t * 2.2) * 1.6 + Math.sin(x * 0.021 - G.t * 1.3) * 1.4);
+      ctx.lineTo(w.x + w.w, w.y + w.h); ctx.fill();
+      // reflection: the picture above the surface, flipped and rippled, drawn back into the water
+      const T = ctx.getTransform(), sx = T.a, dev = (x, y) => [x * T.a + T.e, y * T.d + T.f];
+      const [x0, y0] = dev(w.x, s), [x1] = dev(w.x + w.w, s), hpx = Math.min(70 * sx, y0);
+      if (x1 > 0 && x0 < cv.width && y0 > 0 && y0 < cv.height + hpx) {
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 0.3;
+        const cx0 = Math.max(0, x0), cw = Math.min(cv.width, x1) - cx0, strip = Math.max(2, Math.round(3 * sx));
+        // copy the band above the surface once (reading the canvas back strip by strip is slow), then draw from the copy
+        const R = this.refl || (this.refl = document.createElement('canvas')), top = Math.max(0, Math.floor(y0 - hpx)), bh = Math.ceil(y0) - top;
+        if (cw > 0 && bh > 0) {
+          if (R.width < cw || R.height < bh) { R.width = Math.ceil(cw); R.height = Math.ceil(bh); }
+          const rc = R.getContext('2d'); rc.clearRect(0, 0, R.width, R.height); rc.drawImage(cv, cx0, top, cw, bh, 0, 0, cw, bh);
+          for (let i = 0; i < hpx; i += strip) { const off = Math.sin(i * 0.25 + G.t * 3) * 2.5 * sx * (i / hpx + 0.3), sy = y0 - i - strip - top; if (sy < 0) break; ctx.drawImage(R, 0, sy, cw, strip, cx0 + off, y0 + i, cw, strip); }
+        }
+        ctx.restore();
+      }
+      ctx.strokeStyle = 'rgba(190,235,245,0.55)'; ctx.lineWidth = 1.4; ctx.beginPath();
+      for (let x = 0; x <= w.w; x += 8) { const y = s + Math.sin(x * 0.08 + G.t * 2.2) * 1.6 + Math.sin(x * 0.021 - G.t * 1.3) * 1.4; x ? ctx.lineTo(w.x + x, y) : ctx.moveTo(w.x + x, y); } ctx.stroke();
+    }
+  },
+};
+
+// ---------------------------------------------------------------- draw: every character and object is drawn with code, no image files
+const SYM = ['○', '△', '□'];
+const Draw = {
+  lumen(x, y, o = {}) {   // a firefly person. o: glow 0..1, asleep, old, face, col, s (scale), jar
+    const t = G.t, f = o.face || 1, s = o.s || 1, sl = o.asleep ? 1 : 0, gl = (o.glow == null ? 1 : o.glow) * (1 - sl);
+    const col = o.col || [255, 214, 130], bob = sl ? 0 : Math.sin(t * 2 + x) * 0.8;
+    ctx.save(); ctx.translate(x, y); ctx.scale(f * s, s * (sl ? 0.82 : 1));
+    ctx.strokeStyle = '#2a2440'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(-4, 0); ctx.moveTo(3, -7); ctx.lineTo(4, 0); ctx.stroke();
+    if (gl > 0.02) { ctx.shadowColor = rgba(col, 1); ctx.shadowBlur = 14 * gl; }
+    ctx.fillStyle = sl ? '#6e6c7c' : `rgb(${lerp(70, col[0], gl) | 0},${lerp(64, col[1], gl) | 0},${lerp(90, col[2], gl) | 0})`;
+    ctx.beginPath(); ctx.ellipse(-4, -9 - bob, 8, 6.5, -0.3, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = sl ? 'rgba(200,200,215,0.35)' : 'rgba(220,230,255,0.4)'; ctx.beginPath(); ctx.ellipse(-6, -17 - bob, 9, 3.6, -0.5, 0, 7); ctx.fill();
+    ctx.fillStyle = sl ? '#55536a' : (o.old ? '#4a4258' : '#3d3566'); ctx.beginPath(); ctx.ellipse(1, -14 - bob, 6.5, 7.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = sl ? '#62607a' : (o.old ? '#584f6a' : '#4a4080'); ctx.beginPath(); ctx.arc(3, -23 - bob + sl * 3, 7.2, 0, 7); ctx.fill();
+    if (sl) { ctx.strokeStyle = '#2a2440'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(4, -20); ctx.lineTo(8, -20); ctx.moveTo(0, -20); ctx.lineTo(3, -20); ctx.stroke(); }
+    else { const blink = ((t + x * 0.01) % 4.1) < 0.12 ? 0.15 : 1; ctx.fillStyle = '#f3ecd8'; ctx.beginPath(); ctx.ellipse(6, -23.5 - bob, 2, 2.5 * blink, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(1, -23.5 - bob, 1.6, 2.2 * blink, 0, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = sl ? '#62607a' : '#4a4080'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 2; i++) { const a = sl || o.old ? 5 : Math.sin(t * 3 + i + x) * 1.5; ctx.beginPath(); ctx.moveTo(1 + i * 3, -29 - bob + sl * 3); ctx.quadraticCurveTo(-1 + i * 4, -36 - bob + a, -6 + i * 5 - (o.old ? 3 : 0), -37 - bob + a * 1.6 + sl * 3); ctx.stroke(); }
+    if (o.jar) { ctx.fillStyle = 'rgba(200,230,240,0.25)'; ctx.strokeStyle = '#9db'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(8, -18, 11, 14, 3); ctx.fill(); ctx.stroke(); ctx.fillStyle = `rgba(255,214,130,${0.5 + 0.5 * o.jar})`; ctx.beginPath(); ctx.ellipse(13.5, -9, 2.5 * o.jar + 0.5, 4 * o.jar + 0.5 + Math.sin(t * 13) * 0.5, 0, 0, 7); ctx.fill(); }
+    ctx.restore();
+  },
+  fiddle(x, y, o = {}) {
+    const t = G.t, play = o.play ? Math.sin(t * 9) * 5 : Math.sin(t * 1.4) * 1;
+    ctx.save(); ctx.translate(x, y); ctx.scale(o.face || -1, 1);
+    ctx.strokeStyle = '#8a6f44'; ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(-8, -10); ctx.lineTo(-20, -26); ctx.lineTo(-16, 0); ctx.stroke();           // big hind leg
+    ctx.beginPath(); ctx.moveTo(2, -8); ctx.lineTo(4, 0); ctx.moveTo(8, -9); ctx.lineTo(11, 0); ctx.stroke();
+    ctx.fillStyle = '#b8955c'; ctx.beginPath(); ctx.ellipse(-2, -11, 13, 6.5, 0.12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#9c7c48'; ctx.beginPath(); ctx.ellipse(-4, -14, 10, 3.5, 0.15, 0, 7); ctx.fill();
+    ctx.fillStyle = '#c9a66a'; ctx.beginPath(); ctx.arc(12, -15, 6.5, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#4a3a22'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(14, -15.5, 2, 0.2, Math.PI - 0.2); ctx.stroke();    // closed eye: he's blind
+    ctx.strokeStyle = '#c9a66a'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(14, -21); ctx.quadraticCurveTo(26, -42 + play, 40, -34 + play); ctx.moveTo(12, -21); ctx.quadraticCurveTo(18, -46 - play, 30, -48 - play); ctx.stroke();
+    ctx.strokeStyle = '#e0c48a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-6, -16); ctx.lineTo(8 + play, -24 - play * 0.6); ctx.stroke();   // bowing arm
+    ctx.restore();
+  },
+  bot(x, y, dir, o = {}) {   // wardens and Brine share a body
+    const t = G.t, br = o.brine, lens = o.lens || [255, 170, 80], bob = Math.sin(t * 3 + x) * 1;
+    ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1);
+    ctx.fillStyle = '#3d3a36'; ctx.beginPath(); ctx.arc(0, -8, 8, 0, 7); ctx.fill(); ctx.strokeStyle = '#8a7a5c'; ctx.lineWidth = 2;
+    for (let k = 0; k < 4; k++) { const a = (o.roll || 0) + k * 1.57; ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(Math.cos(a) * 7, -8 + Math.sin(a) * 7); ctx.stroke(); }
+    ctx.fillStyle = br ? '#5d7470' : '#7a6844'; ctx.beginPath(); ctx.roundRect(-12, -46 + bob, 24, 32, 6); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-12, -30 + bob, 24, 3); ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(-10, -44 + bob, 4, 26);
+    if (br) { ctx.fillStyle = '#4f8a5a'; ctx.beginPath(); ctx.ellipse(-8, -45 + bob, 6, 3, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(7, -17 + bob, 5, 2.5, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = br ? '#6d8a86' : '#94804f'; ctx.beginPath(); ctx.arc(0, -52 + bob, 11, Math.PI, 0); ctx.lineTo(11, -46 + bob); ctx.lineTo(-11, -46 + bob); ctx.fill();
+    ctx.fillStyle = '#1c1a18'; ctx.beginPath(); ctx.arc(5, -53 + bob, 5.5, 0, 7); ctx.fill();
+    ctx.fillStyle = rgba(lens, 0.95); ctx.beginPath(); ctx.arc(5.5, -53 + bob, 3.4 + (o.alert ? 1 : 0), 0, 7); ctx.fill();
+    ctx.strokeStyle = '#8a7a5c'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(8, -36 + bob); ctx.lineTo(20, -30 + bob - (o.reach || 0) * 22); ctx.stroke();
+    ctx.fillStyle = '#5a5048'; ctx.beginPath(); ctx.moveTo(16, -30 + bob - (o.reach || 0) * 22); ctx.lineTo(26, -30 + bob - (o.reach || 0) * 22); ctx.lineTo(21, -40 + bob - (o.reach || 0) * 22); ctx.fill();   // the snuffer cup
+    ctx.restore();
+  },
+  umbra(e) {
+    const fl = Math.sin(e.flap), g = e.gold;
+    const wc = [lerp(58, 255, g) | 0, lerp(48, 205, g) | 0, lerp(84, 120, g) | 0], bc = [lerp(34, 200, g) | 0, lerp(28, 150, g) | 0, lerp(52, 80, g) | 0];
+    ctx.save(); ctx.translate(e.x, e.y);
+    for (const s of [-1, 1]) {
+      ctx.save(); ctx.scale(s, 1); ctx.rotate(-0.25 + fl * 0.45);
+      ctx.fillStyle = rgba(wc, 0.95); ctx.beginPath(); ctx.moveTo(6, -6); ctx.bezierCurveTo(40, -70, 120, -70, 128, -14); ctx.bezierCurveTo(110, 6, 60, 14, 6, 8); ctx.fill();
+      ctx.fillStyle = rgba(wc.map(v => v * 0.8 | 0), 0.95); ctx.beginPath(); ctx.moveTo(6, 6); ctx.bezierCurveTo(50, 20, 90, 40, 78, 66); ctx.bezierCurveTo(40, 62, 14, 40, 4, 14); ctx.fill();
+      ctx.fillStyle = g > 0.5 ? 'rgba(255,250,220,0.9)' : 'rgba(230,220,255,0.85)'; ctx.beginPath(); ctx.arc(84, -26, 13, 0, 7); ctx.fill();
+      ctx.fillStyle = g > 0.5 ? '#b8792a' : '#1a1428'; ctx.beginPath(); ctx.arc(84, -26, 7, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1.5; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(120 - k * 8, -50 + k * 16); ctx.stroke(); }
+      ctx.restore();
+    }
+    ctx.fillStyle = rgba(bc, 1); ctx.beginPath(); ctx.ellipse(0, 6, 13, 30, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(0, -24, 12, 0, 7); ctx.fill();
+    ctx.strokeStyle = rgba(wc, 1); ctx.lineWidth = 2.5; for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 5, -33); ctx.quadraticCurveTo(s * 22, -62, s * 34, -52); ctx.stroke(); }
+    ctx.restore();
+  },
+  // ---- things drawn behind characters
+  back(e) {
+    const t = G.t;
+    switch (e.type) {
+      case 'lamp': { ctx.strokeStyle = '#6d5a46'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x, e.y - 44); ctx.quadraticCurveTo(e.x, e.y - 54, e.x + 10, e.y - 52); ctx.stroke();
+        ctx.fillStyle = '#3d342e'; ctx.fillRect(e.x + 4, e.y - 52, 13, 3); ctx.fillRect(e.x + 5, e.y - 34, 11, 2.5);
+        ctx.fillStyle = e.lit ? rgba([255, 214, 130], e.lit) : 'rgba(90,76,60,0.9)'; ctx.fillRect(e.x + 6, e.y - 49, 9, 15); break; }
+      case 'door': { const s = e.solid, h = s.h * (1 - e.open); ctx.fillStyle = '#4a4034'; ctx.fillRect(s.x, s.y, s.w, h); ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(s.x, s.y, 3, h); ctx.strokeStyle = '#8a7a5c'; ctx.lineWidth = 2; for (let y = 10; y < h - 4; y += 22) { ctx.beginPath(); ctx.moveTo(s.x, s.y + y); ctx.lineTo(s.x + s.w, s.y + y); ctx.stroke(); } break; }
+      case 'chalk': if (e.a > 0.02 && e.art) Draw.chalk(e); break;
+      case 'exit': { const ok = Things.canAct(e, G.player); ctx.fillStyle = ok ? 'rgba(255,214,150,0.16)' : 'rgba(120,120,150,0.08)'; ctx.beginPath(); ctx.ellipse(e.x, e.y - 30, 22, 34, 0, 0, 7); ctx.fill(); break; }
+      case 'lure': { ctx.fillStyle = '#4a4640'; ctx.fillRect(e.x - 3, e.y + 14, 6, 34); ctx.fillStyle = '#6a6458'; ctx.beginPath(); ctx.roundRect(e.x - 13, e.y - 14, 26, 30, 5); ctx.fill(); ctx.fillStyle = e.lit ? '#ffe2a0' : '#2c2a28'; ctx.beginPath(); ctx.roundRect(e.x - 9, e.y - 10, 18, 22, 3); ctx.fill(); ctx.fillStyle = '#4a4640'; ctx.fillRect(e.x - 15, e.y - 18, 30, 5); break; }
+      case 'brazier': { ctx.strokeStyle = '#5a5048'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(e.x - 10, e.y + 30); ctx.lineTo(e.x, e.y + 8); ctx.lineTo(e.x + 10, e.y + 30); ctx.stroke(); ctx.fillStyle = '#6a5c4c'; ctx.beginPath(); ctx.moveTo(e.x - 16, e.y - 2); ctx.lineTo(e.x + 16, e.y - 2); ctx.lineTo(e.x + 10, e.y + 10); ctx.lineTo(e.x - 10, e.y + 10); ctx.fill();
+        if (e.lit) for (let k = 0; k < 3; k++) { ctx.fillStyle = ['#ff9d3c', '#ffc35a', '#fff0b8'][k]; ctx.beginPath(); ctx.ellipse(e.x + Math.sin(t * 9 + k) * 2, e.y - 6 - k * 2, 9 - k * 2.6, 13 - k * 3 + Math.sin(t * 13 + k) * 2, 0, 0, 7); ctx.fill(); } break; }
+    }
+  },
+  chalk(e) {
+    const a = e.art; ctx.save(); ctx.translate(e.x, e.y); ctx.globalAlpha = e.a * 0.85; ctx.strokeStyle = ctx.fillStyle = '#e9e4d6'; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.font = '600 15px "Cormorant Garamond", Georgia, serif'; ctx.textAlign = 'center';
+    if (a.t === 'order') { a.seq.forEach((k, i) => { const x = (i - 1) * 34, h = [10, 26, 17][k]; ctx.beginPath(); ctx.ellipse(x, -h / 2, 6 + k * 1.5, h / 2, 0, 0, 7); ctx.stroke(); for (let d = 0; d <= i; d++) { ctx.beginPath(); ctx.arc(x - i * 3 + d * 6, 10, 1.6, 0, 7); ctx.fill(); } }); }
+    else if (a.t === 'valves') { ctx.font = '22px sans-serif'; a.seq.forEach((k, i) => ctx.fillText(SYM[k], (i - 1) * 30, 4)); ctx.beginPath(); ctx.moveTo(-50, 14); ctx.lineTo(50, 14); ctx.stroke(); }
+    else if (a.t === 'sun') { ctx.beginPath(); ctx.arc(0, -16, 12, 0, 7); ctx.stroke(); for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.moveTo(Math.cos(k * 0.785) * 16, -16 + Math.sin(k * 0.785) * 16); ctx.lineTo(Math.cos(k * 0.785) * 23, -16 + Math.sin(k * 0.785) * 23); ctx.stroke(); } ctx.fillText(a.s || 'morning', 0, 22); }
+    else if (a.t === 'tally') { for (let r = 0; r < a.rows; r++) { ctx.globalAlpha = e.a * 0.85 * (1 - r / (a.rows + 1)); for (let k = 0; k < 9; k++) { ctx.beginPath(); ctx.moveTo(-40 + k * 10, -30 + r * 14); ctx.lineTo(-40 + k * 10, -21 + r * 14); ctx.stroke(); } } ctx.globalAlpha = e.a * 0.85; if (a.s) ctx.fillText(a.s, 0, a.rows * 14 - 10); }
+    else if (a.t === 'tower') { ctx.beginPath(); ctx.moveTo(-10, 20); ctx.lineTo(-7, -20); ctx.lineTo(7, -20); ctx.lineTo(10, 20); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -28, 9, 0, 7); ctx.stroke(); for (let k = 0; k < 7; k++) { ctx.beginPath(); ctx.arc(Math.cos(k * 2.1) * 5, -28 + Math.sin(k * 3.3) * 5, 1.3, 0, 7); ctx.fill(); } if (a.s) ctx.fillText(a.s, 0, 38); }
+    else if (a.t === 'text') { a.s.split('|').forEach((ln, i) => ctx.fillText(ln, 0, i * 17)); }
+    ctx.restore();
+  },
+  // ---- characters and active objects
+  ent(e) {
+    const t = G.t;
+    switch (e.type) {
+      case 'page': if (!e.got) { const b = Math.sin(t * 2.4 + e.x) * 3; ctx.save(); ctx.translate(e.x, e.y + b); ctx.rotate(Math.sin(t * 1.3) * 0.12); ctx.fillStyle = '#e9e1cc'; ctx.fillRect(-6, -8, 12, 15); ctx.fillStyle = '#a89c80'; for (let k = 0; k < 4; k++) ctx.fillRect(-4, -5 + k * 3, 8 - (k === 3 ? 3 : 0), 1); ctx.restore(); } break;
+      case 'npc': if (!e.hidden) {
+        const as = typeof e.asleep === 'function' ? e.asleep() : e.asleep;
+        if (e.who === 'fiddle') Draw.fiddle(e.x, e.y, { play: e.play, face: e.face });
+        else if (e.who === 'brine') Draw.bot(e.x, e.y, e.face || -1, { brine: true, lens: e.off ? [60, 80, 80] : [120, 230, 230] });
+        else Draw.lumen(e.x, e.y, { face: e.face, glow: e.glow, asleep: as, old: e.old, col: e.col, s: e.s, jar: e.jar });
+      } break;
+      case 'cap': { const o = e.open, cx = e.x + e.w / 2; ctx.strokeStyle = '#3f6a66'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx, e.y + 40); ctx.quadraticCurveTo(cx + 4, e.y + 20, cx, e.y + 6); ctx.stroke();
+        ctx.fillStyle = `rgb(${lerp(40, 110, o) | 0},${lerp(84, 230, o) | 0},${lerp(88, 200, o) | 0})`; const w = lerp(8, e.w / 2 + 3, o); ctx.beginPath(); ctx.ellipse(cx, e.y + 5, w, lerp(9, 6, o), 0, Math.PI, 0); ctx.lineTo(cx + w, e.y + 7); ctx.lineTo(cx - w, e.y + 7); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.35)'; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(cx + (k - 1) * w * 0.5, e.y + 2, 1.5, 0, 7); ctx.fill(); } break; }
+      case 'bulb': { const h = [16, 40, 27][e.idx], on = e.on; ctx.strokeStyle = '#4f7a55'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x, e.y - 8); ctx.stroke(); ctx.fillStyle = on ? '#bff5d8' : '#3d6a58'; ctx.beginPath(); ctx.ellipse(e.x, e.y - 8 - h / 2, 8 + e.idx * 1.5 + Math.sin(t * 20) * on * 0.6, h / 2, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.ellipse(e.x - 3, e.y - 10 - h * 0.6, 2, h * 0.18, 0, 0, 7); ctx.fill(); break; }
+      case 'valve': { ctx.fillStyle = '#4a5560'; ctx.fillRect(e.x - 4, e.y, 8, 22); ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.pos * 2.094 - e.spin * 2.094); ctx.strokeStyle = '#b5553c'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 12, 0, 7); ctx.stroke(); ctx.lineWidth = 3; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(k * 2.094) * 12, Math.sin(k * 2.094) * 12); ctx.stroke(); } ctx.restore();
+        ctx.fillStyle = '#1a1e24'; ctx.beginPath(); ctx.roundRect(e.x - 11, e.y - 36, 22, 18, 4); ctx.fill(); ctx.fillStyle = '#e9e4d6'; ctx.font = '15px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(SYM[e.pos], e.x, e.y - 22); break; }
+      case 'mirror': { ctx.fillStyle = '#4a4640'; ctx.fillRect(e.x - 2, e.y, 4, 16); ctx.save(); ctx.translate(e.x, e.y); ctx.rotate((e.st ? 1 : -1) * 0.785 + e.turn * (e.st ? -1.57 : 1.57)); ctx.fillStyle = '#8a7a5c'; ctx.fillRect(-15, -3, 30, 6); ctx.fillStyle = '#d8ecf2'; ctx.fillRect(-13, -1.5, 26, 3); ctx.restore(); break; }
+      case 'emitter': { ctx.fillStyle = '#5a5048'; ctx.beginPath(); ctx.roundRect(e.x - 12, e.y - 12, 24, 24, 5); ctx.fill(); ctx.fillStyle = e.on ? '#fff3c8' : '#2c2a28'; ctx.beginPath(); ctx.arc(e.x + e.dir[0] * 6, e.y + e.dir[1] * 6, 6, 0, 7); ctx.fill(); break; }
+      case 'receptor': { ctx.fillStyle = '#3d3a44'; ctx.beginPath(); ctx.roundRect(e.x - 11, e.y - 11, 22, 22, 4); ctx.fill(); ctx.fillStyle = e.done ? '#bff0ff' : '#4a5a6a'; ctx.beginPath(); ctx.moveTo(e.x, e.y - 8); ctx.lineTo(e.x + 7, e.y); ctx.lineTo(e.x, e.y + 8); ctx.lineTo(e.x - 7, e.y); ctx.fill(); break; }
+      case 'crank': { const a = e.done ? -0.9 : -0.2 + e.prog * -0.7; ctx.fillStyle = '#4a4640'; ctx.fillRect(e.x - 4, e.y - 40, 8, 40); ctx.save(); ctx.translate(e.x, e.y - 46); ctx.rotate(a); ctx.fillStyle = '#8a7a5c'; ctx.beginPath(); ctx.ellipse(0, 0, 26, 9, 0, 0, 7); ctx.fill(); ctx.fillStyle = e.done ? '#fff3c8' : '#b8ccd4'; ctx.beginPath(); ctx.ellipse(0, -1, 22, 6, 0, 0, 7); ctx.fill(); ctx.restore();
+        if (e.busy) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(e.x - 20, e.y - 78, 40, 5); ctx.fillStyle = '#ffd98a'; ctx.fillRect(e.x - 20, e.y - 78, 40 * e.prog, 5); } break; }
+      case 'snuff': { const awake = e.st !== 'roost', fl = awake ? Math.sin(e.flap) : -0.9; ctx.save(); ctx.translate(e.x, e.y); ctx.fillStyle = '#231d33';
+        for (const s of [-1, 1]) { ctx.save(); ctx.scale(s, 1); ctx.rotate(awake ? fl * 0.7 : 1.1); ctx.beginPath(); ctx.moveTo(2, -2); ctx.quadraticCurveTo(16, -14, 24, -2); ctx.quadraticCurveTo(14, 6, 2, 4); ctx.fill(); ctx.restore(); }
+        ctx.beginPath(); ctx.ellipse(0, 2, 6, 8, 0, 0, 7); ctx.fill(); ctx.restore(); break; }
+      case 'mire': if (e.st !== 'gone') { ctx.save(); ctx.translate(e.x, e.y); ctx.scale(e.dir, 1); if (e.st === 'leap') ctx.rotate(clamp(e.vy / 600, -1.2, 1.2) - 1.57 * 0);
+        ctx.fillStyle = '#16262e'; ctx.beginPath(); ctx.ellipse(0, 0, 20, 9, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-30, -8 + Math.sin(G.t * 8) * 4); ctx.lineTo(-30, 8 + Math.sin(G.t * 8) * 4); ctx.fill();
+        ctx.strokeStyle = '#16262e'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(12, -6); ctx.quadraticCurveTo(22, -22, 26, -12); ctx.stroke(); ctx.restore(); } break;
+      case 'warden': Draw.bot(e.x, e.y, e.dir, { roll: e.roll, alert: e.st === 'alert' || e.st === 'chase', lens: e.st === 'chase' || e.st === 'alert' ? [255, 90, 70] : [255, 180, 90], reach: e.st === 'snuffing' ? 0.5 + Math.sin(e.t * 5) * 0.5 : 0 }); break;
+      case 'umbra': Draw.umbra(e); break;
+    }
+  },
+  light(e) {
+    switch (e.type) {
+      case 'lamp': if (e.lit) Light.add(e.x + 10, e.y - 42, 180 * e.lit, [255, 200, 120], e.lit, true, 'lamp' + e.idx + (e.lit >= 1 ? '' : G.t)); break;
+      case 'npc': if (!e.hidden) { const as = typeof e.asleep === 'function' ? e.asleep() : e.asleep; if (e.who === 'brine') { if (!e.off) Light.add(e.x, e.y - 50, 80, [120, 230, 230], 0.7, false); } else if (e.who !== 'fiddle' && !as && (e.glow == null || e.glow > 0)) Light.add(e.x, e.y - 12, 90 * (e.glow == null ? 1 : e.glow) + (e.jar ? 110 * e.jar : 0), e.col || [255, 214, 130], 0.8, false); } break;
+      case 'cap': if (e.open > 0.05) Light.add(e.x + e.w / 2, e.y, 70 * e.open, [120, 240, 210], 0.5 * e.open, false); break;
+      case 'bulb': if (e.on) Light.add(e.x, e.y - 20, 120, [170, 255, 215], 0.8, false); break;
+      case 'lure': if (e.lit) Light.add(e.x, e.y, 270, [255, 226, 160], 1, true, 'lure' + e.idx); break;
+      case 'brazier': if (e.lit) Light.add(e.x, e.y - 8, 250 + Math.sin(G.t * 11) * 6, [255, 170, 80], 1, true); break;
+      case 'receptor': if (e.done) Light.add(e.x, e.y, 90, [190, 240, 255], 0.7, false); break;
+      case 'emitter': if (e.on) Light.add(e.x, e.y, 80, [255, 240, 200], 0.7, false); break;
+      case 'warden': Light.add(e.x + e.dir * 80, e.y - 34, 120, [255, 170, 90], 0.5, false); Light.add(e.x, e.y - 40, 50, [255, 170, 90], 0.6, false); break;
+      case 'mire': if (e.st !== 'gone') Light.add(e.x + e.dir * 14, e.y - 8, 34, [150, 255, 200], 0.6, false); break;
+      case 'umbra': Light.add(e.x, e.y, 120 + e.gold * 260, e.gold > 0.3 ? [255, 214, 130] : [150, 130, 200], 0.45 + e.gold * 0.55, false); break;
+      case 'crank': if (e.done) Light.add(e.x, e.y - 46, 110, [255, 240, 200], 0.8, false); break;
+      case 'page': if (!e.got) Light.add(e.x, e.y, 40, [240, 230, 200], 0.6, false); break;
+    }
+  },
+  // ---- eyes and flames that stay visible in total darkness
+  glow(e) {
+    const t = G.t;
+    switch (e.type) {
+      case 'snuff': if (e.st !== 'roost') { ctx.fillStyle = e.st === 'wake' ? '#fff' : '#ffb0b0'; for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(e.x + s * 2.6, e.y, 1.4, 0, 7); ctx.fill(); } } else { ctx.fillStyle = 'rgba(200,190,230,0.25)'; ctx.beginPath(); ctx.arc(e.x, e.y + 2, 1.2, 0, 7); ctx.fill(); } break;
+      case 'mire': if (e.st !== 'gone') { ctx.fillStyle = e.chasing ? '#d8ffe8' : 'rgba(150,255,200,0.6)'; ctx.beginPath(); ctx.arc(e.x + e.dir * 12, e.y - 2, 1.8, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(e.x + e.dir * 26, e.y - 12, 2.2 + Math.sin(t * 6) * 0.6, 0, 7); ctx.fill(); } break;
+      case 'warden': { const al = e.st === 'chase' || e.st === 'alert', col = al ? [255, 90, 70] : [255, 180, 90]; const g = ctx.createLinearGradient(e.x, 0, e.x + e.dir * 240, 0); g.addColorStop(0, rgba(col, 0.20)); g.addColorStop(1, rgba(col, 0));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(e.x + e.dir * 6, e.y - 53); ctx.lineTo(e.x + e.dir * 240, e.y - 100); ctx.lineTo(e.x + e.dir * 240, e.y + 4); ctx.fill();
+        if (e.st === 'alert') { ctx.fillStyle = '#ff5a46'; ctx.font = '700 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', e.x, e.y - 72); } break; }
+      case 'umbra': if (e.st === 'aim') { ctx.strokeStyle = `rgba(255,120,120,${0.3 + 0.3 * Math.sin(t * 20)})`; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); const p = G.player; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(p.x + 9, p.y + 13); ctx.stroke(); ctx.setLineDash([]); } break;
+      case 'lamp': if (!e.lit && G.player.hasLantern) { ctx.fillStyle = `rgba(255,214,130,${0.25 + 0.15 * Math.sin(t * 3 + e.x)})`; ctx.beginPath(); ctx.arc(e.x + 10, e.y - 42, 2.5, 0, 7); ctx.fill(); } break;
+    }
+  },
+  prompt(e) {
+    const label = Things.label(e), x = e.x, y = e.y - (e.type === 'npc' ? 62 : e.type === 'crank' ? 96 : 66) + Math.sin(G.t * 4) * 2;
+    ctx.font = '600 11px "IBM Plex Mono", monospace'; const w = ctx.measureText(label).width + 34;
+    ctx.fillStyle = 'rgba(12,10,22,0.86)'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - 11, w, 22, 11); ctx.fill();
+    ctx.fillStyle = '#ffd98a'; ctx.beginPath(); ctx.roundRect(x - w / 2 + 4, y - 7, 16, 14, 4); ctx.fill();
+    ctx.fillStyle = '#1b1208'; ctx.textAlign = 'center'; ctx.fillText('E', x - w / 2 + 12, y + 4);
+    ctx.fillStyle = '#f1ebff'; ctx.textAlign = 'left'; ctx.fillText(label, x - w / 2 + 25, y + 4);
+  },
+};
+
+// ---------------------------------------------------------------- levels: maps are carved from solid rock, then the story is attached
+function carveMap(w, h, ops) {
+  const g = Array.from({ length: h }, () => Array(w).fill('#'));
+  for (const [op, a, b, c, d, e] of ops) {
+    if (op === 'carve') for (let y = b; y < b + d; y++) for (let x = a; x < a + c; x++) g[y][x] = ' ';
+    else if (op === 'fill') for (let y = b; y < b + d; y++) for (let x = a; x < a + c; x++) g[y][x] = '#';
+    else if (op === 'rect') for (let y = c; y < c + e; y++) for (let x = b; x < b + d; x++) g[y][x] = a;      // ['rect', ch, x, y, w, h]
+    else if (op === 'put') g[c][b] = a;                                                                       // ['put', ch, x, y]
+  }
+  return g.map(r => r.join(''));
+}
+const say = (w, t) => Dialog.say(w, t);
+const npc = i => G.ents.filter(e => e.type === 'npc')[i];
+const T = TILE;
+function bigLamp(x, fy, k, broken) {   // the Heartlamp below, and the Great Lens above, are the same shape on purpose
+  const t = G.t; ctx.save(); ctx.translate(x, fy);
+  ctx.fillStyle = '#3a3340'; ctx.fillRect(-46, -14, 92, 14); ctx.fillRect(-36, -26, 72, 12);
+  ctx.strokeStyle = '#8a7a5c'; ctx.lineWidth = 4; ctx.fillStyle = `rgba(${lerp(40, 255, k) | 0},${lerp(44, 220, k) | 0},${lerp(60, 150, k) | 0},${0.35 + k * 0.5})`;
+  ctx.beginPath(); ctx.moveTo(-30, -26); ctx.bezierCurveTo(-52, -70, -40, -128, 0, -140); ctx.bezierCurveTo(40, -128, 52, -70, 30, -26); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(138,122,92,0.8)'; for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * 12, -26); ctx.quadraticCurveTo(i * 20, -86, i * 5, -138); ctx.stroke(); }
+  for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.ellipse(0, -26 - i * 28, 42 - i * 4, 5, 0, 0, 7); ctx.stroke(); }
+  if (broken) { ctx.strokeStyle = '#1a1622'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(-8, -138); ctx.lineTo(4, -104); ctx.lineTo(-12, -84); ctx.lineTo(8, -60); ctx.lineTo(-2, -36); ctx.stroke(); ctx.beginPath(); ctx.moveTo(4, -104); ctx.lineTo(26, -92); ctx.stroke(); }
+  if (k > 0.05) { ctx.fillStyle = `rgba(255,246,214,${k})`; ctx.beginPath(); ctx.ellipse(0, -70, Math.max(0.5, 9 * k + Math.sin(t * 9) * 1.2), 26 * k, 0, 0, 7); ctx.fill(); }
+  ctx.fillStyle = '#4a4252'; ctx.beginPath(); ctx.moveTo(-12, -140); ctx.lineTo(12, -140); ctx.lineTo(0, -156); ctx.fill();
+  ctx.restore();
+}
+function playLullaby() { [262, 294, 330, 392, 440, 392, 330, 392].forEach((f, i) => Sfx.tone(f, 1.6, 0.1, 'triangle', i * 0.42)); }
+
+const LEVELS = [null,
+// =========================================================================================== I · Hollowmere, Unlit
+{ roman: 'I', title: 'Hollowmere, Unlit', epi: 'On the night everyone was looking at the light, the light went out.', theme: 'hollow', mood: 'hollow', exitLabel: 'Climb the Well',
+  map: carveMap(70, 24, [['carve', 1, 4, 68, 12], ['fill', 48, 15, 20, 1], ['fill', 52, 14, 16, 1], ['carve', 60, 1, 3, 3],
+    ['rect', 'H', 61, 2, 1, 12], ['put', 'P', 6, 15], ['put', 'N', 14, 15], ['put', 'N', 22, 15], ['put', 'N', 26, 15], ['put', 'N', 31, 15], ['put', 'N', 35, 15], ['put', 'N', 39, 15],
+    ['put', 'L', 45, 15], ['put', 'c', 56, 13], ['put', 'X', 61, 2], ['put', '1', 43, 15]]),
+  heart: 1, hx: 30 * T + 16, fy: 16 * T,
+  npcs: [
+    { who: 'kid', s: 0.8, col: [255, 190, 150], glow: 0.5, face: 1, talk: async () => { await say('nib', flag('dark1') ? 'Tansy? Tansy, wake up.' : 'Nice lantern, Tansy.'); if (flag('dark1')) await say('nib', 'Out cold. Her glow’s gone grey, like in Sorrel’s stories.'); else await say('kid', 'It’s only little. Mum says everyone’s is a bit littler now.'); } },
+    { who: 'sorrel', old: true, glow: 0.7, face: -1, talk: async () => { if (flag('dark1')) { await say('nib', 'I’ll bring it back, Sorrel. Then you can tell me it didn’t matter.'); } else await say('sorrel', 'Go on, love. Stand by the Heartlamp with the others.'); } },
+    { who: 'lumen', glow: 0.6, face: 1 }, { who: 'wick', old: true, glow: 0.45, face: 1, hidden: true, jar: 1 }, { who: 'lumen', glow: 0.5, face: -1 }, { who: 'lumen', glow: 0.35, face: -1, s: 0.9 },
+  ],
+  chalk: [{ t: 'sun', s: 'morning' }],
+  setup(L) { this.heart = flag('dark1') ? 0 : 1; if (flag('dark1')) G.ents.forEach(e => { if (e.type === 'npc') e.asleep = true; }); },
+  enter(L, resumed) { if (!flag('dark1')) cutscene(() => this.opening()); },
+  async opening() {
+    const p = G.player, S = npc(1), K = npc(0), W = npc(3), fy = this.fy;
+    p.x = 24.5 * T; p.face = 1; look(this.hx - 60, fy - 46, 1.2);
+    await wait(1.6);
+    await say('sorrel', 'The Festival of the First Lantern. Every child lights one from their own glow, the way Wick did the morning he woke us.');
+    await say('kid', 'Me first! Me first!');
+    K.lantern = 1; Sfx.lamp(); Fx.spark(K.x + 10, K.y - 30, 12); await wait(0.9);
+    await say('sorrel', 'Lovely, Tansy. Now, Nib. Your turn, love.');
+    for (let i = 0; i < 3; i++) { await Dialog.press(i ? 'Try again' : 'Light your lantern'); Sfx.noise(0.12, 0.08, 1800, 3); Fx.spark(p.x + 20, p.y - 6, 4, [160, 150, 190]); await wait(0.45); }
+    await say('nib', '…');
+    await say('sorrel', 'Hold it up anyway. It doesn’t matter if it lights.');
+    await say('nib', 'It matters a little.');
+    look(this.hx, fy - 60, 1.3); await wait(0.8);
+    for (let i = 0; i < 5; i++) { this.heart = 0.35 + (i % 2) * 0.5; Sfx.noise(0.1, 0.07, 700, 2); await wait(0.22); }
+    this.heart = 0; flag('dark1', 1); Sfx.snuff(); Sfx.thunder(); G.cam.shake = 14; Sfx.setMood(MOODS.dark);
+    W.hidden = false; W.x = this.hx + 30; await wait(0.7);
+    look(46 * T, fy - 50, 1.05);
+    for (let t = 0; t < 2.4; t += 0.016) { W.x += 250 * 0.016; if (W.x > 61 * T) { W.y -= 260 * 0.016; W.x = 61 * T + 16; } await wait(0.016); }
+    W.hidden = true;
+    look(this.hx - 20, fy - 46, 1.2);
+    for (const i of [0, 2, 4, 5]) { npc(i).asleep = true; npc(i).lantern = 0; Sfx.tone(300 - i * 20, 0.5, 0.04, 'sine', 0, -120); await wait(0.5); }
+    await say('sorrel', 'The Heartflame. Someone’s taken it up the Well. I can feel it going out of me.');
+    await say('nib', 'Sorrel? Everyone’s gone grey. Why am I still awake?');
+    await say('sorrel', 'Oh, love. Because you’ve no light for it to take.');
+    await say('sorrel', 'Here. My lantern. It’s the last one lit. Go after it, Nib. You’re the only one who can.');
+    S.asleep = true; p.hasLantern = true; flag('lantern', 1); Sfx.hood(true); await wait(1.1);
+    await say('nib', 'Fine. The one Lumen who can’t glow, off to rescue the light. Nobody laugh.');
+    Save.write(); toast('Move with ← → or A D · Jump with Space · E to interact', 7);
+  },
+  triggers: { 1() { if (!flag('toldLamp')) toast('Wayside lamps keep your place. Stand by one and press E to light it.', 6); } },
+  onChalk() { cutscene(async () => { await say('nib', 'The little ones draw morning as a great lantern in the sky. Nobody here has ever seen one.'); }); },
+  lights() { const o = [], h = this.heart; if (h > 0) { o.push({ x: this.hx, y: this.fy - 80, r: 520, col: [255, 214, 140], k: h * 0.92, key: 'heart' }); for (let i = 0; i < 20; i++) o.push({ x: (4 + i * 2.1) * T, y: 7.2 * T, r: 70 - i * 2, col: [255, 200, 120], k: (1 - i * 0.04) * h, shadow: false }); }
+    const K = npc(0); if (K && K.lantern) o.push({ x: K.x + 10, y: K.y - 26, r: 70, col: [255, 190, 130], k: 0.8, shadow: false }); return o; },
+  rays() { return [{ x: 61.5 * T, y: 1 * T, w: 30, dx: -30, h: 420, col: [150, 170, 255], a: 0.10 }]; },
+  draw(layer) {
+    if (layer === 'back') { // festival lanterns on a string: each family's is dimmer than the last
+      ctx.strokeStyle = 'rgba(120,100,150,0.6)'; ctx.lineWidth = 1; ctx.beginPath(); for (let i = 0; i < 20; i++) { const x = (4 + i * 2.1) * T, y = 6.4 * T + Math.sin(i * 1.3) * 6; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
+      for (let i = 0; i < 20; i++) { const x = (4 + i * 2.1) * T, y = 6.4 * T + Math.sin(i * 1.3) * 6 + Math.sin(G.t * 1.5 + i) * 1.5, k = (1 - i * 0.042) * this.heart; ctx.fillStyle = '#3d342e'; ctx.fillRect(x - 5, y, 10, 3); ctx.fillStyle = `rgba(${lerp(70, 255, k) | 0},${lerp(60, 205, k) | 0},${lerp(60, 120, k) | 0},1)`; ctx.fillRect(x - 4, y + 3, 8, 11); }
+      bigLamp(this.hx, this.fy, this.heart, false);
+    }
+    if (layer === 'mid') { const K = npc(0); if (K) { ctx.fillStyle = K.lantern ? '#ffd0a0' : '#5a4630'; ctx.fillRect(K.x + 7, K.y - 30, 7, 9); } }
+  },
+},
+// =========================================================================================== II · The Root Cellar
+{ roman: 'II', title: 'The Root Cellar', epi: 'Things up here hunt the light. She has none to hunt.', theme: 'roots', mood: 'roots', exitLabel: 'Climb on',
+  map: carveMap(150, 26, [['carve', 1, 6, 148, 11], ['fill', 12, 6, 24, 4], ['fill', 126, 6, 1, 8], ['fill', 52, 6, 5, 4], ['carve', 46, 17, 16, 4], ['rect', '^', 46, 20, 16, 1],
+    ['fill', 84, 12, 10, 1], ['rect', 'H', 83, 11, 1, 6], ['carve', 139, 1, 3, 5], ['rect', 'H', 140, 2, 1, 15],
+    ['put', 'P', 4, 16], ['put', 'L', 8, 16], ['put', '1', 12, 16], ['put', 'S', 18, 10], ['put', 'c', 24, 16], ['put', 'S', 27, 10], ['put', 'N', 40, 16], ['put', 'L', 43, 16],
+    ['put', 'g', 47, 16], ['put', 'g', 48, 16], ['put', 'g', 51, 16], ['put', 'g', 52, 16], ['put', 'g', 55, 16], ['put', 'g', 56, 16], ['put', 'g', 59, 16], ['put', 'g', 60, 16], ['put', 'S', 54, 10],
+    ['put', 'L', 64, 16], ['put', 'q', 67, 16], ['put', 'S', 89, 6], ['put', 'q', 91, 11], ['put', '2', 98, 16], ['put', 'c', 103, 16], ['put', 'N', 108, 16],
+    ['put', 'b', 112, 16], ['put', 'b', 116, 16], ['put', 'b', 120, 16], ['put', 'N', 122, 16], ['put', 'D', 126, 16], ['put', 'L', 130, 16], ['put', 'X', 140, 2]]),
+  order: [1, 0, 2], prog: 0,
+  pages: [
+    ['Keeper’s journal · a torn page', 'The cellar keeps them cool in summer. They cluster in the roots like a second sky. I come down at dusk and sing, and they follow me up the stair. I have stopped feeling foolish about it.\n— M.'],
+    ['A brass cylinder', 'Pinned all over, like the inside of a music box. Scratched on the rim:\n“Dusk song. For the flies. — M.”\nYou know this tune. Everyone in Hollowmere knows this tune.', async () => { flag('cylinder', 1); await say('nib', 'That’s our lullaby. What’s it doing on a human thing?'); }],
+  ],
+  chalk: [{ t: 'order', seq: [1, 0, 2] }, { t: 'tally', rows: 4, s: 'each row fainter' }],
+  npcs: [
+    { who: 'fiddle', face: -1, async talk(e) {
+        if (!flag('metFiddle')) { flag('metFiddle', 1);
+          await say('fiddle', 'There you are. Loud feet, quiet lantern. Good. You learn.');
+          await say('nib', 'You’re a cricket.'); await say('fiddle', 'And you’re a Lumen with no light. I can hear the gap where the hum should be.');
+          await say('nib', 'Everyone can, apparently.'); await say('fiddle', 'Up here, that’s the only sensible kind to be. The Snuffs can’t find you. Hood that lantern and you’re nobody at all.');
+          await say('fiddle', 'Something bright went through an hour ago. Wheezing. Smelled of lamp oil and regret.');
+          await say('fiddle', 'The first ones through here left chalk for their children. It only shows in lantern light. Mind what’s sleeping above it.');
+        } else await say('fiddle', 'Light to see. Dark to live. Glowcaps open for a lit lantern and stay open a few breaths after.');
+      } },
+    { who: 'fiddle', face: -1, async talk(e) {
+        if (flag('fiddleAsked')) { await say('fiddle', flag('fiddleAlly') ? 'Tall, small, middle. Sing it right and the roots let go.' : 'The door wants ringing in the old order. Read the chalk, back under the roost.'); return; }
+        await say('fiddle', 'You took your time. The Root Door only opens to the old song, rung on those three bulbs.');
+        await say('fiddle', 'I’d sing it for you, but mine’s got a hole in the middle. Forty winters I’ve been one phrase short.');
+        if (flag('cylinder')) {
+          const c = await Dialog.choose('nib', 'The keeper’s cylinder has the whole tune on it. It’s also the only proof I’ve got for home.', ['Give Fiddle the cylinder', 'Keep it as proof']);
+          flag('fiddleAsked', 1);
+          if (c === 0) { flag('fiddleAlly', 1); await say('nib', 'Here. I think this is the rest of your song.'); e.play = true; playLullaby(); await wait(3.6); e.play = false;
+            await say('fiddle', '…There’s the middle. Oh, there it is.'); await say('fiddle', 'If you ever need a loud friend, little dark one, I’ll hear you. I hear everything.'); }
+          else { await say('nib', 'Sorry. They won’t believe me without it.'); await say('fiddle', 'Suit yourself. Proof’s heavy to carry, though.'); }
+        } else await say('fiddle', 'Something on the high shelf back there rattles like the missing bit. I can’t climb any more.');
+      } },
+    { who: 'wick', old: true, glow: 0.4, hidden: true, jar: 0.9, face: 1 },
+  ],
+  setup(L) { if (flag('rootDoor')) after(0.1, () => Things.door(0, true)); },
+  triggers: {
+    1() { cutscene(async () => { await say('fiddle', 'Stop. You’re loud for something so dark.'); await say('nib', 'Who’s there?'); await say('fiddle', 'Shut that lantern. The Snuffs have ears in their eyes.'); toast('Q or Shift: hood your lantern. Hooded, you’re hard to see, and so is everything else.', 7); }); },
+    2() { cutscene(async () => { const W = npc(2); W.hidden = false; W.x = 110 * T; look(112 * T, 17 * T - 46, 1.3); await wait(0.6);
+        for (let t = 0; t < 2.2; t += 0.016) { W.x += 120 * 0.016; await wait(0.016); } W.hidden = true;
+        await say('nib', 'That jar. That limp.'); await say('nib', 'That’s Wick.'); await say('nib', 'He woke everyone once. Why would he put us all back to sleep?'); }); },
+  },
+  onChalk(e) { if (e.idx === 0) cutscene(async () => { await say('nib', 'Three shapes. Tall, then small, then middle. And dots, counting one, two, three.'); });
+    else cutscene(async () => { await say('nib', 'Tally marks. Families. Every row scratched a little fainter than the one before.'); }); },
+  onBulb(e) {
+    if (flag('rootDoor')) return;
+    if (e.idx === this.order[this.prog]) { e.on = 1; Sfx.bulb(e.idx); this.prog++; if (this.prog === 3) { flag('rootDoor', 1); after(0.9, () => { Things.door(0, true); toast('The roots let go of the door.'); }); } }
+    else { this.prog = 0; G.ents.forEach(b => { if (b.type === 'bulb') b.on = 0; }); Sfx.sour(); toast('Wrong order. The bulbs go quiet.'); }
+  },
+},
+// =========================================================================================== III · The Drowned Works
+{ roman: 'III', title: 'The Drowned Works', epi: 'Somebody very large built this. Somebody very small was kept in it.', theme: 'works', mood: 'works', exitLabel: 'Take the lift',
+  map: carveMap(160, 26, [['carve', 1, 5, 158, 12], ['carve', 14, 17, 21, 3], ['rect', 'w', 14, 17, 21, 3],
+    ['rect', '=', 16, 16, 2, 1], ['rect', '=', 20, 16, 2, 1], ['rect', '=', 24, 16, 2, 1], ['rect', '=', 28, 16, 2, 1], ['rect', '=', 32, 16, 2, 1],
+    ['rect', '=', 48, 13, 11, 1], ['rect', 'H', 47, 12, 1, 5],
+    ['carve', 104, 17, 21, 3], ['fill', 119, 19, 6, 1], ['fill', 121, 18, 4, 1], ['rect', 'w', 104, 17, 15, 3], ['rect', 'w', 119, 17, 2, 2], ['rect', 'w', 121, 17, 4, 1],
+    ['rect', '=', 130, 13, 7, 1], ['rect', '=', 139, 13, 8, 1], ['rect', 'H', 129, 12, 1, 5], ['rect', 'H', 147, 12, 1, 5],
+    ['put', 'P', 4, 16], ['put', 'L', 7, 16], ['put', '1', 11, 16], ['put', 'U', 12, 16], ['put', 'M', 24, 18], ['put', 'q', 38, 16], ['put', 'L', 41, 16],
+    ['put', 'U', 45, 16], ['put', 'c', 52, 16], ['put', 'W', 62, 16], ['put', 'c', 67, 16], ['put', 'L', 81, 16], ['put', 'N', 85, 16],
+    ['put', 'v', 94, 16], ['put', 'v', 97, 16], ['put', 'v', 100, 16], ['put', 'M', 110, 18], ['put', 'q', 111, 19], ['put', 'W', 138, 16], ['put', 'L', 152, 16], ['put', 'X', 156, 16]]),
+  code: [1, 0, 2], wardens: [{ a: 49, b: 76 }, { a: 128, b: 148 }],
+  pages: [
+    ['Keeper’s journal · the jar racks', 'Hatching room, third week. Two hundred new flies, each no bigger than a lentil, each with its own small lamp. I keep them in the jars until their light steadies, then carry them up to the lens to join the others.\nThe wardens think I fuss. The wardens are made of clockwork.\n— M.'],
+    ['Keeper’s journal · the desk under the water', 'They do not make light. I was wrong about that for years. They hold it. Every dawn they crowd the east glass and drink the sun, and every night they give it back to the ships.\nA fly kept from the morning goes dim in a season. So I never keep them from the morning.\n— M.', async () => { await say('nib', 'They hold it. They don’t make it.'); await say('nib', '…We’ve been underground for a very long time.'); }],
+  ],
+  chalk: [{ t: 'text', s: 'KEEP THE LAMPS LIT|— M.' }, { t: 'valves', seq: [1, 0, 2] }],
+  npcs: [
+    { who: 'brine', face: -1, async talk(e) {
+        if (!flag('metBrine')) { flag('metBrine', 1);
+          await say('brine', 'Night nine thousand and four. Lamp: unlit. Keeper: expected.');
+          await say('nib', 'You’re one of those things. You’re not chasing me.');
+          await say('brine', 'This unit’s wheel is seized. Chasing: unavailable. Also, you are not a lamp.');
+          await say('nib', 'No. I’ve noticed.');
+          await say('brine', 'Query. Are you one of the keeper’s flies? You are unlit. Flies are lit.');
+          await say('nib', 'What do you mean, the keeper’s flies?');
+          await say('brine', 'The Great Lamp of Greywater burned no oil. The keeper raised lumen-flies in the lens. Four thousand, two hundred and six. They were the lamp.');
+          await say('nib', 'We were… a lamp. We were somebody’s lamp.');
+          await say('brine', 'Then the Long Night. Lens: shattered. Flies: fled down the well. Keeper: went after them. Keeper: expected back.');
+          await say('brine', 'The drain valves follow the keeper’s marks. She chalked them where she stood, past the patrol. Dry the basin and the lift will run.');
+        } else await say('brine', G.water[1].drained ? 'Basin: dry. Lift: ready. This unit will ride up with you.' : 'Three valves. The keeper’s marks are on the wall the patrol walks past. A lit lamp will keep a warden busy.');
+      } },
+  ],
+  triggers: { 1() { cutscene(async () => { await say('nib', 'Something’s moving under the water. It turns when my lantern turns.'); toast('Big lamps draw things that love light. Light one, and they go to it instead of you.', 7); }); } },
+  onChalk(e) { if (e.idx === 1) cutscene(async () => { await say('nib', 'Triangle, circle, square. The keeper’s valve settings.'); }); },
+  onValve() {
+    const v = G.ents.filter(e => e.type === 'valve'); if (G.water[1].drained) return;
+    if (v.every((e, i) => e.pos === this.code[i])) { G.water[1].drained = true; flag('drained', 1); Sfx.open(); G.cam.shake = 8; toast('Deep in the works, something groans. The basin is draining.'); }
+  },
+  setup(L) { if (flag('drained')) { G.water[1].drained = true; G.water[1].drain = 1; } },
+  tick(dt) { const w = G.water[1]; if (w.drained && w.drain < 1) { w.drain = Math.min(1, w.drain + dt * 0.22); if (Math.random() < dt * 20) Fx.add({ x: w.x + Math.random() * w.w, y: w.surf(), vy: -30, life: 0.6, size: 1.5, col: [170, 220, 235] }); } },
+  rays() { return [{ x: 60 * T, y: 5 * T, w: 40, dx: 60, h: 360, col: [140, 180, 220], a: 0.05 }, { x: 112 * T, y: 5 * T, w: 50, dx: -50, h: 420, col: [140, 180, 220], a: 0.06 }]; },
+  draw(layer) { if (layer === 'back') { ctx.fillStyle = 'rgba(160,200,210,0.10)'; ctx.strokeStyle = 'rgba(160,200,210,0.3)'; ctx.lineWidth = 1; for (let i = 0; i < 9; i++) { const x = (36 + i * 0.9) * T, y = 14.6 * T; ctx.beginPath(); ctx.roundRect(x, y, 16, 22, 4); ctx.fill(); ctx.stroke(); } ctx.fillStyle = '#3a3a40'; ctx.fillRect(35.6 * T, 15.3 * T + 10, 9 * T, 4); } },
+},
+// =========================================================================================== IV · The Lighthouse Stair
+{ roman: 'IV', title: 'The Lighthouse Stair', epi: 'He wasn’t stealing it. He was running.', theme: 'tower', mood: 'tower', exitLabel: 'Climb to the lamp',
+  map: carveMap(120, 28, [['carve', 1, 7, 118, 12], ['fill', 60, 17, 59, 2], ['fill', 59, 18, 1, 1], ['fill', 30, 7, 1, 9], ['fill', 92, 7, 1, 7], ['rect', '=', 39, 14, 4, 1], ['rect', 'H', 39, 13, 1, 6],
+    ['rect', '=', 70, 11, 17, 1], ['rect', 'H', 69, 10, 1, 7],
+    ['put', 'P', 4, 18], ['put', 'L', 7, 18], ['put', 'N', 11, 18], ['put', 'e', 14, 17], ['put', 'm', 24, 17], ['put', 'r', 24, 8], ['put', 'D', 30, 18], ['put', 'q', 33, 18], ['put', 'c', 35, 18],
+    ['put', 'U', 37, 18], ['put', 'W', 50, 18], ['put', 'L', 63, 16], ['put', 'e', 66, 15], ['put', 'm', 72, 15], ['put', 'm', 72, 9], ['put', 'm', 84, 9], ['put', 'r', 84, 13],
+    ['put', 'D', 92, 16], ['put', 'L', 96, 16], ['put', 'c', 98, 16], ['put', 'N', 102, 16], ['put', 'N', 105, 16], ['put', 'X', 114, 16]]),
+  emitters: [[1, 0], [1, 0]], mirrorStart: [1, 1, 1, 0], wardens: [{ a: 44, b: 58 }],
+  pages: [['Keeper’s journal · the last page', 'It came out of the dusk tonight, wide as the gallery. Not angry. Hungry. It has been circling for a week, drinking what spills from the lens.\nThe glass is cracking. The flies are frightened. If the lamp goes, I will open the well and send them down into the rock, where it is dark and nothing will look for them.\nI will come for you when it is morning. I promise.\n— M.']],
+  chalk: [{ t: 'tower', s: 'our light' }, { t: 'tally', rows: 5, s: '9,004 nights' }],
+  npcs: [
+    { who: 'brine', face: 1, async talk() { await say('brine', 'Keeper’s light-locks. A beam must reach the eye above the door. Mirrors turn. This unit supplies the beam.'); await say('nib', 'And if a warden sees me?'); await say('brine', 'Wardens tend lamps. Light the big one. They will go to it. They always go to it.'); } },
+    { who: 'wick', old: true, glow: 0.3, face: -1, jar: 0.7, s: 1.05, async talk(e) { await LEVELS[4].wickScene(e); } },
+    { who: 'brine', face: -1, hidden: true },
+  ],
+  setup(L) { G.ents.forEach(e => { if (e.type === 'emitter') e.on = true; }); if (flag('lock1')) after(0.1, () => Things.door(0, true)); if (flag('lock2')) after(0.1, () => Things.door(1, true)); },
+  onReceptor(r) { flag('lock' + (r.idx + 1), 1); after(0.5, () => { Things.door(r.idx, true); toast(r.idx ? 'The second lock opens. Someone is breathing on the other side.' : 'The light-lock opens.'); }); },
+  onChalk(e) { if (e.idx === 0) cutscene(async () => { await say('nib', 'A lighthouse, full of little dots. “Our light.” A child drew this. A human child.'); });
+    else cutscene(async () => { await say('nib', 'Nine thousand and four scratches. Brine has been counting every night since.'); }); },
+  canExit() { return !!flag('wickTold'); },
+  async wickScene(e) {
+    if (flag('wickTold')) { await say('wick', 'Go on up. I’ll be right behind you. Brine has promised not to drop me.'); return; }
+    const B = npc(2);
+    look(e.x - 30, e.y - 40, 1.4);
+    await say('nib', 'Wick.'); await say('wick', 'Nib. Of course it’s you. You’re the only one who could have stayed awake.');
+    await say('nib', 'You took the Heartflame. Everyone’s grey. Sorrel’s grey. You stole it!');
+    await say('wick', 'I wasn’t stealing it, little one. I was running. There isn’t any more where this came from.');
+    await say('wick', 'When I woke them, we shared one light between all of us. Shared, Nib. Not made. Nobody down there has ever made light.');
+    await say('wick', 'Every hatchling since has been a little dimmer than the last. I’ve watched it for sixty years and said nothing.');
+    await say('nib', 'Then why was I born with none?'); await wait(0.6);
+    await say('wick', 'Because we’d spent it.'); await say('wick', 'You’re not broken, Nib. You’re just last.');
+    await wait(0.8); await say('nib', '…All my life they were so gentle with me. I thought it was pity.'); await say('wick', 'It was guilt. Mine, mostly.');
+    await say('wick', 'The lullaby says the morning is on its way. I thought, if morning is a place, I’ll carry the flame there and ask for more. Silly old fly.');
+    await say('nib', 'It’s not silly. The keeper wrote it down. We don’t make light. We hold it. It comes from the sun.');
+    await say('wick', 'Then it’s up there. And I can’t climb another step.');
+    B.hidden = false; B.x = e.x + 150; for (let t = 0; t < 1.4; t += 0.016) { B.x -= 40 * 0.016; await wait(0.016); }
+    await say('brine', 'Carrying: available. One fly, elderly. One flame, small.');
+    await say('brine', 'Query, repeated. When is the keeper coming back?');
+    const c = await Dialog.choose('nib', 'Maren promised to come back in the morning. That was nine thousand nights ago.', ['Tell Brine the truth', 'Let it keep waiting']);
+    if (c === 0) { flag('brineTruth', 1); await say('nib', 'She isn’t, Brine. She’s been gone longer than anyone alive. I’m sorry.'); await wait(0.7); await say('brine', '…Logged.'); await say('brine', 'Then this unit has one duty left. See the lamp lit. After that: no entries.'); }
+    else { await say('nib', 'In the morning, Brine. She said in the morning.'); await say('brine', 'Logged. Morning: expected. This unit will be ready.'); }
+    await say('wick', 'Something’s up there, Nib. It comes for any flame. It will see me. It will see Brine’s eye.');
+    await say('wick', 'It won’t see you.');
+    await say('nib', 'The one Lumen who can’t glow.'); await say('wick', 'The one Lumen it can’t find.');
+    flag('wickTold', 1); Save.write(); toast('The way up is open.');
+  },
+  rays() { return [{ x: 20 * T, y: 7 * T, w: 26, dx: 70, h: 330, col: [150, 170, 230], a: 0.07 }, { x: 78 * T, y: 7 * T, w: 26, dx: -60, h: 300, col: [150, 170, 230], a: 0.07 }, { x: 108 * T, y: 7 * T, w: 30, dx: 40, h: 300, col: [150, 170, 230], a: 0.08 }]; },
+},
+// =========================================================================================== V · The Lamp Room
+{ roman: 'V', title: 'The Lamp Room', epi: 'The morning’s on its way.', theme: 'lamp', mood: 'tower', fog: 0.4,
+  map: carveMap(60, 24, [
+    ['carve', 1, 0, 58, 16],                                             // the room itself
+    ['rect', '=', 27, 11, 7, 1], ['rect', 'H', 26, 10, 1, 6],            // a platform, and the ladder up to it
+    ['put', 'P', 4, 15], ['put', 'L', 7, 15], ['put', '1', 9, 15],       // Nib, a wayside lamp, a story trigger
+    ['put', 'N', 10, 15], ['put', 'N', 13, 15], ['put', 'N', 50, 15],    // Brine, Wick, Fiddle
+    ['put', 'B', 18, 15], ['put', 'B', 46, 15],                          // two braziers
+    ['put', 'k', 22, 15], ['put', 'k', 30, 10], ['put', 'k', 40, 15],    // three sun-mirror cranks
+    ['put', 'O', 30, 6],                                                 // Umbra
+  ]),
+  flame: 100, cranksLive: false, lens: { x: 30 * T + 16, y: 16 * T }, flamePos: { x: 13 * T + 16, y: 16 * T }, dawn: 0, lightning: 0,
+  npcs: [
+    { who: 'brine', face: 1 }, { who: 'wick', old: true, glow: 0.3, face: 1, jar: 0.7 }, { who: 'fiddle', face: -1, hidden: true },
+  ],
+  setup(L) { this.flame = 100; this.cranksLive = false; this.dawn = 0; G.sky = 0; },
+  ambient() { return lerp(0.7, 0.0, ease(this.dawn)); },
+  tick(dt) {
+    this.lightning = Math.max(0, this.lightning - dt * 2.5);
+    if (this.dawn < 0.2 && Math.random() < dt * 0.12) { this.lightning = 1; Sfx.thunder(); }
+    const W = npc(1); if (W) W.jar = 0.15 + 0.6 * this.flame / 100;
+    if (this.cranksLive) this.flame = Math.min(100, this.flame + dt * 1.5);
+    Hud.flame(this.cranksLive ? this.flame : null);
+  },
+  triggers: { 1() { cutscene(() => LEVELS[5].arrive()); } },
+  async arrive() {
+    const U = G.ents.find(e => e.type === 'umbra'), F = npc(2);
+    look(20 * T, 12.6 * T, 1.0); await wait(1.0);
+    await say('wick', 'There’s the lens. What’s left of it. It looks like the Heartlamp.'); await say('nib', 'The Heartlamp looks like it. We built a copy of home and forgot what it was a copy of.');
+    await say('brine', 'Sun-mirrors: three. Seized since the Long Night. Turn all three east and first light will fill the lens.');
+    await say('brine', 'First light in: not long.');
+    look(U.x, U.y + 40, 0.9); Sfx.roar(); G.cam.shake = 10; await wait(1.4);
+    await say('wick', 'There it is. The Gloam.'); await say('nib', 'It’s looking at your jar.');
+    await say('wick', 'Then it will come for the jar. Light a brazier and it will go there instead, for a while. Like the wardens. Like everything.');
+    await say('nib', 'And while it’s busy, the dark one turns the mirrors.'); await say('wick', 'Go on, Nib. Nobody’s laughing.');
+    if (flag('fiddleAlly')) { F.hidden = false; F.play = true; playLullaby(); await say('fiddle', 'I heard a storm with a hole in it. Thought it wanted a tune.'); toast('Fiddle is playing the whole lullaby. Umbra lingers longer at the braziers.', 6); }
+    Sfx.setMood(MOODS.storm); this.cranksLive = true; U.st = 'hunt';
+    toast('Turn the three sun-mirrors. Keep Umbra off the Heartflame: light a brazier, or be the light yourself.', 8);
+  },
+  onCrank(e) { const n = G.ents.filter(c => c.type === 'crank' && c.done).length; if (n < 3) toast(['', 'One mirror faces east.', 'Two. The horizon is going grey.'][n]); else cutscene(() => this.sunrise()); },
+  onFlameOut() { this.flame = 55; respawn('The Heartflame guttered. Wick shields it with his hands. Try again: keep a brazier lit.'); const U = G.ents.find(e => e.type === 'umbra'); U.st = 'hunt'; U.x = U.hx; U.y = U.hy; },
+  async sunrise() {
+    const U = G.ents.find(e => e.type === 'umbra'), p = G.player, W = npc(1), B = npc(0);
+    this.cranksLive = false; U.st = 'calm'; Sfx.setMood(null); look(this.lens.x, 11.5 * T, 0.85); await wait(1.2);
+    Sfx.swell(); for (let t = 0; t < 6; t += 0.016) { this.dawn = Math.min(1, t / 6); G.sky = this.dawn; await wait(0.016); }
+    Sfx.setMood(MOODS.dawn); await wait(1.0);
+    await say('nib', 'It’s not attacking.'); await say('wick', 'It’s eating. Look at it. It was never angry. It was starving, same as us.');
+    look(p.x, p.y - 6, 1.6); for (let t = 0; t < 2.5; t += 0.016) { p.glow = Math.min(1, t / 2.5); await wait(0.016); } flag('glow', 1); Sfx.lamp();
+    await say('nib', '…Wick. Wick, look at me.'); await say('wick', 'I’m looking, little one.');
+    await say('nib', 'I’m warm. Is this what it feels like? All the time?'); await say('wick', 'All the time.');
+    look(W.x, W.y - 36, 1.5); await say('wick', 'So that’s what they were singing about.'); await wait(0.6);
+    for (let t = 0; t < 2; t += 0.016) { W.glow = 0.3 * (1 - t / 2); this.flame = 100 * (1 - t / 2); await wait(0.016); } W.asleep = true; W.jar = 0;
+    await wait(1.0); await say('nib', 'Wick?'); await wait(0.8); await say('nib', '…Morning, Wick.');
+    if (flag('brineTruth')) { await say('brine', 'Lamp: lit. Duty: complete. No further entries.'); B.off = true; Sfx.tone(220, 1.5, 0.06, 'sine', 0, -150); await wait(1.0); }
+    else { await say('brine', 'Lamp: lit. Morning: confirmed. Keeper: expected. This unit will polish the glass.'); }
+    look(this.lens.x, 12 * T, 1.0);
+    const c = await Dialog.choose('nib', 'The Well is right there. Hollowmere is still asleep at the bottom of it.', ['Carry the morning down', 'Call them up']);
+    Save.data.done = true; const id = c === 0 ? 'down' : 'up'; if (!Save.data.endings.includes(id)) Save.data.endings.push(id); Save.write();
+    await Epilogue.run(id);
+  },
+  lights() { const o = [{ x: this.flamePos.x + 12, y: this.flamePos.y - 14, r: 60 + this.flame * 1.3, col: [255, 214, 140], k: 0.9, shadow: false }]; if (this.lightning > 0) o.push({ x: 30 * T, y: 4 * T, r: 1400, col: [200, 210, 255], k: this.lightning * 0.8, shadow: false }); if (this.dawn > 0) o.push({ x: this.lens.x, y: this.lens.y - 80, r: 300 + 900 * this.dawn, col: [255, 220, 150], k: this.dawn, shadow: false }); return o; },
+  rays() { return this.dawn > 0.05 ? [{ x: 58 * T, y: 9 * T, w: 30, dx: -28 * T, h: 60, col: [255, 226, 160], a: 0.25 * this.dawn }, { x: this.lens.x, y: this.lens.y - 90, w: 40, dx: -12 * T, h: 6 * T, col: [255, 226, 160], a: 0.2 * this.dawn }] : []; },
+  drawSky(c, w, h) {
+    const d = ease(this.dawn), t = G.t, hz = h * 0.7;
+    const g = c.createLinearGradient(0, 0, 0, hz); g.addColorStop(0, `rgb(${lerp(6, 70, d) | 0},${lerp(8, 110, d) | 0},${lerp(18, 190, d) | 0})`); g.addColorStop(0.7, `rgb(${lerp(16, 250, d) | 0},${lerp(20, 170, d) | 0},${lerp(36, 130, d) | 0})`); g.addColorStop(1, `rgb(${lerp(20, 255, d) | 0},${lerp(24, 214, d) | 0},${lerp(40, 150, d) | 0})`);
+    c.fillStyle = g; c.fillRect(0, 0, w, hz);
+    if (this.lightning > 0) { c.fillStyle = `rgba(210,220,255,${this.lightning * 0.5})`; c.fillRect(0, 0, w, h); }
+    if (d > 0.02) { const sx = w * 0.82, sy = hz - d * 70; const sg = c.createRadialGradient(sx, sy, 0, sx, sy, 260); sg.addColorStop(0, `rgba(255,244,200,${d})`); sg.addColorStop(0.12, `rgba(255,220,140,${d * 0.8})`); sg.addColorStop(1, 'rgba(255,200,120,0)'); c.fillStyle = sg; c.fillRect(0, 0, w, hz); }
+    const r = rng(11); for (let i = 0; i < 16; i++) { const x = ((r() * 1600 + t * (6 + r() * 10)) % (w + 500)) - 250, y = 20 + r() * hz * 0.7, cw = 160 + r() * 240; c.fillStyle = `rgba(${lerp(26, 255, d) | 0},${lerp(28, 190, d) | 0},${lerp(44, 170, d) | 0},${lerp(0.75, 0.35, d)})`; c.beginPath(); c.ellipse(x, y, cw, 26 + r() * 26, 0, 0, 7); c.fill(); }
+    const sea = c.createLinearGradient(0, hz, 0, h); sea.addColorStop(0, `rgb(${lerp(14, 230, d) | 0},${lerp(22, 160, d) | 0},${lerp(36, 130, d) | 0})`); sea.addColorStop(1, `rgb(${lerp(6, 40, d) | 0},${lerp(10, 70, d) | 0},${lerp(20, 110, d) | 0})`); c.fillStyle = sea; c.fillRect(0, hz, w, h - hz);
+    c.strokeStyle = `rgba(255,255,255,${0.06 + d * 0.2})`; c.lineWidth = 1.5; for (let i = 0; i < 26; i++) { const y = hz + 6 + i * i * 0.28, x = (r() * w + t * (10 + i)) % w; c.beginPath(); c.moveTo(x, y); c.lineTo(x + 30 + i * 3, y); c.stroke(); }
+    if (d < 0.6) { c.strokeStyle = `rgba(170,190,230,${0.28 * (1 - d / 0.6)})`; c.lineWidth = 1; c.beginPath(); for (let i = 0; i < 90; i++) { const x = (r() * (w + 200) + t * 260) % (w + 200) - 100, y = (r() * h + t * 900) % h; c.moveTo(x, y); c.lineTo(x - 7, y + 22); } c.stroke(); }
+  },
+  draw(layer) {
+    if (layer === 'back') { bigLamp(this.lens.x, this.lens.y, this.dawn, true);
+      ctx.strokeStyle = '#4a4a58'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(T, 14.2 * T); ctx.lineTo(59 * T, 14.2 * T); ctx.stroke(); for (let x = 1; x < 59; x += 2) { ctx.beginPath(); ctx.moveTo(x * T, 14.2 * T); ctx.lineTo(x * T, 16 * T); ctx.stroke(); } }
+  },
+},
+];
+
+// ---------------------------------------------------------------- ui: dialogue box, HUD, cards and menus live in the page, over the canvas
+const $ = id => document.getElementById(id);
+const Hud = {
+  last: {},
+  set(id, v) { if (this.last[id] !== v) { this.last[id] = v; $(id).textContent = v; } },
+  flame(v) { const el = $('flame'); if (v == null) { if (!el.hidden) el.hidden = true; return; } if (el.hidden) el.hidden = false; $('flamebar').style.width = v.toFixed(0) + '%'; },
+  sync() {
+    const p = G.player; if (!p) return;
+    this.set('lanternState', !p.hasLantern ? 'none' : p.snuffed > 0 ? 'out' : p.open ? 'lit' : 'hooded');
+    $('lanternChip').dataset.s = !p.hasLantern ? 'none' : p.snuffed > 0 ? 'out' : p.open ? 'lit' : 'hooded';
+    this.set('pageCount', Save.data.pages.length + ' / ' + PAGE_TOTAL);
+    this.set('chapName', G.lvl.def.roman + ' · ' + G.lvl.def.title);
+    const t = G.toast, el = $('toast');
+    if (t && t.t > 0) { this.set('toast', t.text); el.classList.add('show'); } else el.classList.remove('show');
+    $('bars').classList.toggle('on', G.cut && G.mode === 'play');
+  },
+};
+const PAGE_TOTAL = LEVELS.reduce((n, l) => n + (l && l.pages ? l.pages.length : 0), 0);
+
+const Ui = {
+  lastKey: '', pc: null,
+  portrait(who) {
+    const c = $('portrait'), g = c.getContext('2d'), main = ctx;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height);
+    const col = CAST[who].col; const bg = g.createRadialGradient(48, 44, 4, 48, 48, 52); bg.addColorStop(0, rgba(col, 0.35)); bg.addColorStop(1, rgba(col, 0.04)); g.fillStyle = bg; g.fillRect(0, 0, 96, 96);
+    ctx = g; g.setTransform(3, 0, 0, 3, 0, 0);
+    if (who === 'nib') { const p = G.player; Player.draw({ x: 16 - 9 - 3, y: 38 - 26, w: 18, h: 26, vx: 0, vy: 0, onGround: true, face: 1, hasLantern: false, walkT: 0, swing: 0, land: 0, glow: p ? p.glow : 0, open: true, snuffed: 0 }); }
+    else if (who === 'fiddle') { g.setTransform(2.6, 0, 0, 2.6, 0, 0); Draw.fiddle(14, 34, { face: 1 }); }
+    else if (who === 'brine') { g.setTransform(2.4, 0, 0, 2.4, 0, 0); Draw.bot(18, 70, 1, { brine: true, lens: [120, 230, 230] }); }
+    else if (who === 'maren') { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#e9e1cc'; g.fillRect(26, 18, 44, 58); g.fillStyle = '#a89c80'; for (let k = 0; k < 7; k++) g.fillRect(32, 28 + k * 6, 32 - (k === 6 ? 12 : 0), 2); }
+    else Draw.lumen(13, 37, { face: 1, old: who === 'wick' || who === 'sorrel', glow: who === 'wick' ? 0.35 : 0.8, s: who === 'kid' ? 0.85 : 1, col: CAST[who].col });
+    ctx = main;
+  },
+  sync() {
+    const c = Dialog.cur, box = $('dlg'), pg = $('pagecard'), pr = $('press');
+    box.hidden = !(c && (c.kind === 'say' || c.kind === 'choice')); pg.hidden = !(c && c.kind === 'page'); pr.hidden = !(c && c.kind === 'press');
+    if (!c) { this.lastKey = ''; return; }
+    if (c.kind === 'press') { $('pressLabel').textContent = c.text; return; }
+    const shown = c.text.slice(0, Math.floor(c.n)), done = c.n >= c.text.length;
+    if (c.kind === 'page') { $('pageTitle').textContent = c.title; $('pageText').textContent = shown; $('pageHint').style.opacity = done ? 1 : 0; return; }
+    const key = c.who + '|' + c.text;
+    if (key !== this.lastKey) { this.lastKey = key; this.portrait(c.who); $('dlgName').textContent = CAST[c.who].name; $('dlgName').style.color = rgba(CAST[c.who].col, 1); $('choices').innerHTML = ''; this.selShown = -1; }
+    $('dlgText').textContent = shown;
+    $('dlgHint').style.opacity = done && c.kind === 'say' ? 1 : 0;
+    const ch = $('choices');
+    if (c.kind === 'choice' && done) {
+      if (!ch.children.length) c.options.forEach((o, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = o; b.addEventListener('click', () => { c.sel = i; tapped.act = true; }); ch.appendChild(b); });
+      if (this.selShown !== c.sel) { this.selShown = c.sel; [...ch.children].forEach((b, i) => b.classList.toggle('sel', i === c.sel)); }
+    }
+  },
+  card(def, done) {
+    $('chNum').textContent = 'Chapter ' + def.roman; $('chTitle').textContent = def.title; $('chEpi').textContent = def.epi;
+    const el = $('chcard'); el.classList.add('show'); G.cardT = 3.4; G.cardDone = () => { el.classList.remove('show'); done(); };
+  },
+  journal(open) {
+    const el = $('journal'); if (!open) { el.hidden = true; G.paused = false; return; }
+    const body = $('journalBody'); body.innerHTML = '';
+    LEVELS.forEach((l, n) => { if (!l || !l.pages) return; l.pages.forEach((pg, i) => { const got = Save.data.pages.includes(n + ':' + i), d = document.createElement('div'); d.className = 'entry' + (got ? '' : ' missing');
+      const h = document.createElement('h3'); h.textContent = got ? pg[0] : 'Chapter ' + l.roman + ' · not found yet'; d.appendChild(h); if (got) { const p = document.createElement('p'); p.textContent = pg[1]; d.appendChild(p); } body.appendChild(d); }); });
+    el.hidden = false; G.paused = true; $('closeJournal').focus();
+  },
+  title() {
+    G.mode = 'title'; $('title').hidden = false; $('hud').hidden = true; Sfx.setMood(null);
+    const has = Save.data.chapter > 1 || Save.data.cp != null || flag('dark1');
+    $('continueBtn').hidden = !has; $('continueBtn').textContent = 'Continue · Chapter ' + (LEVELS[Save.data.chapter] || LEVELS[1]).roman;
+    $('newBtn').textContent = has ? 'New game' : 'Begin';
+    $('endNote').textContent = Save.data.endings.length ? 'Endings found: ' + Save.data.endings.length + ' of 2' : '';
+  },
+};
+function startChapter(n, cp) {
+  $('title').hidden = true; $('hud').hidden = false; G.mode = 'card'; G.fade = 1; G.fadeDir = 0;
+  loadLevel(n, cp);
+  Ui.card(LEVELS[n], () => { G.mode = 'play'; G.fadeDir = -1.2; });
+}
+const Epilogue = {
+  async run(id) {
+    const L = [];
+    if (id === 'down') { L.push('Nib left the three mirrors turned east.'); L.push('Every dawn since, one beam falls down the Well and into the Heartlamp. Hollowmere wakes with it. Nobody there has gone grey again.'); }
+    else { L.push('Nib rang the keeper’s bell down the Well until her arms shook.'); L.push('They came up blinking, one family at a time, into a sky none of them had a word for. Hollowmere is quiet now. Someone leaves a lantern at the Well on festival night.'); }
+    L.push(flag('fiddleAlly') ? 'Fiddle moved into the lamp room. He says the acoustics are terrible. He plays the whole lullaby at dusk, middle and all.' : 'Down in the Root Cellar, a cricket still plays a song with a hole in it. In Hollowmere, a small brass cylinder sits on a shelf, proving everything.');
+    L.push(flag('brineTruth') ? 'Brine stands in the east window where it stopped. The children polish it on festival night.' : 'Brine polishes the lens each morning and asks when the keeper is coming. Nib always gives the same answer. In the morning.');
+    L.push('Wick is buried where the first light lands.');
+    L.push('The great moth comes at dusk and leaves at dawn, full. Nobody calls it the Gloam any more.');
+    L.push('On festival night the children line up with their lanterns. Nib goes first now.\nShe lights it from her own glow.');
+    const el = $('epi'), tx = $('epiText'); el.hidden = false; el.classList.add('show');
+    for (const line of L) { tx.classList.remove('in'); await wait(0.5); tx.textContent = line; tx.classList.add('in'); await wait(1.0); await Dialog.press('Continue'); }
+    tx.classList.remove('in'); await wait(0.6);
+    $('epiEnd').hidden = false; $('epiStats').textContent = `Ending: ${id === 'down' ? 'Carry the Morning Down' : 'Call Them Up'} · Journal pages: ${Save.data.pages.length} of ${PAGE_TOTAL} · Endings found: ${Save.data.endings.length} of 2`;
+    tx.textContent = '';
+    await Dialog.press('Back to the title');
+    el.classList.remove('show'); el.hidden = true; $('epiEnd').hidden = true;
+    const keep = Save.data.endings; Save.reset(); Save.data.endings = keep; Save.write(); G.cut = false; Ui.title();
+  },
+};
+// buttons
+$('newBtn').addEventListener('click', () => { Sfx.init(); const keep = Save.data.endings; Save.reset(); Save.data.endings = keep; startChapter(1); });
+$('continueBtn').addEventListener('click', () => { Sfx.init(); startChapter(Save.data.chapter || 1, Save.data.cp); });
+$('journalBtn').addEventListener('click', () => Ui.journal(true));
+$('closeJournal').addEventListener('click', () => Ui.journal(false));
+$('muteBtn').addEventListener('click', () => { Sfx.setMuted(!Sfx.muted); $('muteBtn').textContent = Sfx.muted ? 'Sound off' : 'Sound on'; });
+$('resumeBtn').addEventListener('click', () => { $('pause').hidden = true; G.paused = false; });
+$('quitBtn').addEventListener('click', () => { $('pause').hidden = true; G.paused = false; Ui.title(); });
+$('chcard').addEventListener('pointerdown', () => { if (G.cardT > 0.4) G.cardT = Math.min(G.cardT, 0.01); });
+$('dlg').addEventListener('pointerdown', e => { if (!e.target.closest('button')) tapped.act = true; });
+$('pagecard').addEventListener('pointerdown', () => { tapped.act = true; });
+$('press').addEventListener('pointerdown', () => { tapped.act = true; });
+$('epi').addEventListener('pointerdown', () => { tapped.act = true; });
+
+// ---------------------------------------------------------------- main: the loop that ties it together
+function updateCamera(dt) {
+  const c = G.cam, p = G.player, L = G.lvl;
+  let tx = p.x + p.w / 2 + p.face * 46, ty = p.y - (Dialog.cur ? 14 : 62);   // lift the view while someone is talking, so the box never hides them
+  if (c.tx != null) { tx = c.tx; ty = c.ty; }
+  c.zoom += (c.tz - c.zoom) * Math.min(1, dt * 2.2);
+  const hw = VW / 2 / c.zoom, hh = VH / 2 / c.zoom, W = L.w * TILE, H = L.h * TILE;
+  tx = W > hw * 2 ? clamp(tx, hw, W - hw) : W / 2; ty = H > hh * 2 ? clamp(ty, hh, H - hh) : H / 2;
+  const k = Math.min(1, dt * (c.tx != null ? 2.4 : 4.5));
+  c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;
+  c.shake = c.shake > 0.3 && !reduceMotion ? c.shake * Math.pow(0.02, dt) : 0;
+}
+function update(dt) {
+  stepFade(dt);
+  if (G.mode === 'card') { G.cardT -= dt; if (G.cardT <= 0 && G.cardDone) { const d = G.cardDone; G.cardDone = null; d(); } return; }
+  if (G.mode !== 'play') return;
+  if (I.pauseP && !G.cut) { G.paused = !G.paused; $('pause').hidden = !G.paused; }
+  if (I.journalP && !G.cut && !G.paused) Ui.journal(true);
+  if (G.paused) return;
+  G.t += dt;
+  stepTimers(dt);
+  Dialog.update(dt);
+  Player.update(G.player, dt);
+  Things.update(dt);
+  Enemies.update(dt);
+  Fx.update(dt);
+  G.lvl.def.tick && G.lvl.def.tick(dt);
+  if (G.toast) G.toast.t -= dt;
+  updateCamera(dt);
+  Sfx.music(dt);
+}
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  pollInput();
+  try {
+    update(dt);
+    if (G.lvl) { if (!window.__skipDraw) Render.frame(); Hud.sync(); }
+    else { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#07060d'; ctx.fillRect(0, 0, cv.width, cv.height); }
+    Ui.sync();
+  } catch (err) { console.error(err); }
+  requestAnimationFrame(frame);
+}
+resize(); Light.resize(); Ui.title();
+requestAnimationFrame(frame);
+// hooks for the automated playtest
+window.__g = { G, Save, flag, Dialog, startChapter, LEVELS, Player, Things, npc, respawn, Sfx, Render, Light, Draw, Fx };
+
+})();
+</script>

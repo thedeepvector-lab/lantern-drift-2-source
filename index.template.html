@@ -1,0 +1,161 @@
+<title>Lantern Drift II: The Borrowed Dawn</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one full-height stage. The world is the page; dialogue and HUD float over it. Single dark look by design. */
+:root {
+  --night: #07060d;
+  --panel: #100d1cf0;
+  --line: #ffffff24;
+  --ember: #ffd98a;
+  --ember-deep: #e3913b;
+  --ink: #f3eeff;
+  --muted: #a8a0c6;
+  --cold: #a9d8ff;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --voice: "Cormorant Garamond", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--night); color: var(--ink); font-family: var(--mono); margin: 0; box-sizing: border-box; overflow: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px; }
+.stage { position: relative; height: 100%; border-radius: 12px; overflow: hidden; background: var(--night); box-shadow: 0 0 0 1px #ffffff14; touch-action: none; user-select: none; -webkit-user-select: none; }
+canvas#c { display: block; width: 100%; height: 100%; }
+button { font-family: var(--mono); cursor: pointer; color: var(--ink); }
+button:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+
+.bars::before, .bars::after { content: ""; position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .5s ease; pointer-events: none; }
+.bars::before { top: 0; } .bars::after { bottom: 0; }
+.bars.on::before, .bars.on::after { height: 7.5%; }
+
+.hud { position: absolute; inset: 12px 12px auto 12px; display: flex; gap: 8px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; pointer-events: none; }
+.hud .g { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { background: #07060dc4; border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; display: flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.chip b { color: var(--ember); font-weight: 600; }
+.chip[data-s="hooded"] b { color: var(--muted); } .chip[data-s="out"] b { color: #ff8a7a; }
+.chip.btn { pointer-events: auto; }
+.meter { width: 120px; height: 7px; background: #3a2f22; border-radius: 4px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--ember-deep), var(--ember)); }
+
+.toast { position: absolute; left: 50%; top: 58px; transform: translateX(-50%); max-width: min(40rem, calc(100% - 32px)); text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; font-size: 13px; line-height: 1.5; opacity: 0; transition: opacity .4s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+.dlg { position: absolute; left: 50%; bottom: 9.5%; transform: translateX(-50%); width: min(50rem, calc(100% - 28px)); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px 14px 14px; display: grid; grid-template-columns: 96px 1fr; gap: 14px; box-shadow: 0 16px 50px #000a; }
+.dlg canvas { width: 96px; height: 96px; border-radius: 12px; background: #0b0916; border: 1px solid var(--line); }
+.dlg .name { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+.dlg .text { font-family: var(--display); font-size: clamp(1.02rem, 2.1vw, 1.3rem); line-height: 1.42; min-height: 3.6em; text-wrap: pretty; }
+.dlg .hint { position: absolute; right: 16px; bottom: 9px; font-size: 10px; letter-spacing: .15em; color: var(--muted); transition: opacity .2s; }
+.dlg kbd, .press kbd, .keys kbd { font-family: var(--mono); background: var(--ember); color: #1b1208; border-radius: 4px; padding: 0 5px; font-weight: 600; }
+.choices { display: grid; gap: 6px; margin-top: 8px; }
+.choices button { text-align: left; background: #1b1630; border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; font-family: var(--display); font-size: 1.02rem; }
+.choices button.sel { border-color: var(--ember); background: #2a2140; box-shadow: 0 0 18px #ffd98a30; }
+.choices button.sel::before { content: "\25B8  "; color: var(--ember); }
+
+.pagecard { position: absolute; inset: 0; display: grid; place-items: center; background: #05040ad0; padding: 20px; }
+.pagecard .paper { width: min(34rem, 100%); background: #e9e1cc; color: #2a2418; border-radius: 6px; padding: 26px 30px 22px; box-shadow: 0 20px 60px #000c; transform: rotate(-0.6deg); }
+.pagecard h2 { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; margin: 0 0 12px; color: #7a6c50; font-weight: 600; }
+.pagecard p { font-family: var(--voice); font-style: italic; font-weight: 600; font-size: clamp(1.15rem, 2.4vw, 1.45rem); line-height: 1.42; margin: 0; white-space: pre-line; min-height: 7em; }
+.pagecard .hint { font-size: 10px; letter-spacing: .15em; color: #7a6c50; margin-top: 14px; text-align: right; transition: opacity .2s; }
+
+.press { position: absolute; left: 50%; bottom: 20%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--ember); border-radius: 999px; padding: 9px 18px; font-size: 13px; letter-spacing: .06em; animation: pulse 1.2s ease-in-out infinite; z-index: 5; }
+@keyframes pulse { 50% { box-shadow: 0 0 26px #ffd98a55; } }
+
+.chcard { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; background: #05040a; padding: 24px; opacity: 0; pointer-events: none; transition: opacity .8s; }
+.chcard.show { opacity: 1; pointer-events: auto; }
+.chcard .num { font-size: 12px; letter-spacing: .42em; color: var(--muted); text-transform: uppercase; }
+.chcard .t { font-family: var(--display); font-weight: 600; font-size: clamp(2.2rem, 6vw, 3.8rem); margin: 12px 0 14px; text-wrap: balance; }
+.chcard .e { font-family: var(--voice); font-style: italic; font-size: clamp(1.15rem, 2.6vw, 1.5rem); color: var(--ember); max-width: 34ch; margin: 0 auto; }
+
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; background: radial-gradient(ellipse at 50% 40%, #0d0a1c99, #05040af5); overflow-y: auto; }
+.card { max-width: 36rem; text-align: center; display: grid; gap: 14px; justify-items: center; }
+h1 { font-family: var(--display); font-weight: 900; font-size: clamp(2.6rem, 8vw, 4.8rem); line-height: .95; margin: 0; letter-spacing: -.02em; color: var(--ember); text-shadow: 0 0 44px #ffd98a55; text-wrap: balance; }
+.sub { font-family: var(--voice); font-style: italic; font-size: clamp(1.3rem, 3.2vw, 1.9rem); margin-top: -4px; }
+.card p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--muted); max-width: 44ch; }
+.keys { font-size: 12px; color: var(--muted); line-height: 2; }
+.primary { font-family: var(--display); font-weight: 600; font-size: 1.1rem; color: #1b1208; background: var(--ember); border: 0; border-radius: 999px; padding: 12px 30px; box-shadow: 0 0 30px #ffd98a55; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 9px 18px; font-size: 12px; letter-spacing: .06em; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.small { font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+.small a { color: var(--cold); }
+
+.journal { width: min(42rem, 100%); max-height: 100%; overflow-y: auto; background: #100d1cf8; border: 1px solid var(--line); border-radius: 16px; padding: 22px; text-align: left; }
+.journal h2 { font-family: var(--display); margin: 0 0 12px; font-size: 1.6rem; color: var(--ember); }
+.journal .entry { border-top: 1px solid var(--line); padding: 12px 0; }
+.journal .entry h3 { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+.journal .entry p { font-family: var(--voice); font-style: italic; font-size: 1.15rem; line-height: 1.4; margin: 0; white-space: pre-line; }
+.journal .missing h3 { opacity: .45; }
+
+.epi { position: absolute; inset: 0; display: grid; place-items: center; background: #05040a00; padding: 28px; text-align: center; transition: background 2s; }
+.epi.show { background: #05040ae8; }
+.epi .line { font-family: var(--voice); font-style: italic; font-weight: 600; font-size: clamp(1.4rem, 3.4vw, 2.2rem); line-height: 1.4; max-width: 30ch; white-space: pre-line; opacity: 0; transition: opacity .8s; text-wrap: balance; }
+.epi .line.in { opacity: 1; }
+.epi .end { display: grid; gap: 12px; justify-items: center; }
+
+.touch { display: none; position: absolute; inset: auto 0 0 0; padding: 14px; justify-content: space-between; pointer-events: none; }
+body.is-touch .touch { display: flex; }
+.touch div { display: flex; gap: 10px; pointer-events: auto; }
+.touch button { width: 58px; height: 58px; border-radius: 50%; background: #100d1cb0; border: 1px solid var(--line); font-size: 13px; }
+@media (max-width: 560px) { .touch { padding: 8px; } .touch div { gap: 6px; } .touch button { width: 42px; height: 42px; font-size: 10px; padding: 0; } }
+@media (max-width: 560px) { .dlg { grid-template-columns: 64px 1fr; } .dlg canvas { width: 64px; height: 64px; } .meter { width: 80px; } }
+@media (prefers-reduced-motion: reduce) { .press { animation: none; } .bars::before, .bars::after, .chcard, .epi, .epi .line { transition: none; } }
+</style>
+
+<div class="stage" id="stage">
+  <canvas id="c" aria-label="Game view"></canvas>
+  <div class="bars" id="bars"></div>
+
+  <div class="hud" id="hud" hidden>
+    <div class="g">
+      <div class="chip" id="lanternChip" data-s="none">Lantern <b id="lanternState">none</b></div>
+      <div class="chip" id="flame" hidden>Heartflame <span class="meter"><i id="flamebar"></i></span></div>
+    </div>
+    <div class="g">
+      <div class="chip"><span id="chapName"></span></div>
+      <button class="chip btn" id="journalBtn" type="button">Journal <b id="pageCount">0 / 5</b></button>
+      <button class="chip btn" id="muteBtn" type="button">Sound on</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <div class="dlg" id="dlg" hidden>
+    <canvas id="portrait" width="96" height="96"></canvas>
+    <div><div class="name" id="dlgName"></div><div class="text" id="dlgText"></div><div class="choices" id="choices"></div></div>
+    <div class="hint" id="dlgHint"><kbd>E</kbd> next</div>
+  </div>
+  <div class="press" id="press" hidden><kbd>E</kbd> <span id="pressLabel"></span></div>
+  <div class="pagecard" id="pagecard" hidden><div class="paper"><h2 id="pageTitle"></h2><p id="pageText"></p><div class="hint" id="pageHint">E to put it away</div></div></div>
+
+  <div class="epi" id="epi" hidden><div><div class="line" id="epiText"></div>
+    <div class="end" id="epiEnd" hidden><h1>The Borrowed Dawn</h1><div class="sub">The end</div><div class="small" id="epiStats"></div></div></div></div>
+
+  <div class="chcard" id="chcard"><div><div class="num" id="chNum"></div><div class="t" id="chTitle"></div><p class="e" id="chEpi"></p></div></div>
+
+  <div class="overlay" id="title">
+    <div class="card">
+      <div class="small">LANTERN DRIFT II</div>
+      <h1>The Borrowed Dawn</h1>
+      <div class="sub">She is the only one who doesn&rsquo;t glow.</div>
+      <p>The Heartlamp has been taken. Everyone in Hollowmere has fallen asleep, except the one Lumen with no light to lose. Climb after it.</p>
+      <div class="row"><button class="primary" id="newBtn" type="button">Begin</button><button class="ghost" id="continueBtn" type="button" hidden>Continue</button></div>
+      <div class="keys"><kbd>A</kbd> <kbd>D</kbd> move &middot; <kbd>Space</kbd> jump &middot; <kbd>W</kbd> <kbd>S</kbd> climb &middot; <kbd>E</kbd> interact &middot; <kbd>Q</kbd> hood the lantern &middot; <kbd>J</kbd> journal</div>
+      <div class="small" id="endNote"></div>
+      <div class="small">Headphones recommended &middot; A sequel to Lantern Drift &middot; Made with the <a href="https://github.com/Donchitos/Claude-Code-Game-Studios" target="_blank" rel="noopener">Claude Code Game Studios</a> workflow</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="pause" hidden><div class="card"><div class="sub">Paused</div><div class="row"><button class="primary" id="resumeBtn" type="button">Resume</button><button class="ghost" id="quitBtn" type="button">Back to the title</button></div><div class="small">Your place is saved at the last lamp you lit.</div></div></div>
+  <div class="overlay" id="journal" hidden><div class="journal" role="dialog" aria-label="Journal"><button class="ghost" id="closeJournal" type="button" style="float:right">Close</button><h2>Journal</h2><div id="journalBody"></div></div></div>
+
+  <div class="touch"><div><button data-k="left" type="button">&#9664;</button><button data-k="right" type="button">&#9654;</button><button data-k="up" type="button">&#9650;</button><button data-k="down" type="button">&#9660;</button></div>
+    <div><button data-k="hood" type="button">Hood</button><button data-k="act" type="button">E</button><button data-k="jump" type="button">Jump</button></div></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+/*__SRC__*/
+})();
+</script>

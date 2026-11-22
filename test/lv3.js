@@ -1,0 +1,36 @@
+const { open } = require('./drv');
+(async () => {
+  const d = await open(); const log = (...a) => console.log(...a);
+  await d.page.click('#newBtn'); await d.run(0.3, {});
+  await d.page.evaluate(() => { __g.flag('lantern', 1); __g.flag('dark1', 1); __g.startChapter(3); });
+  await d.run(4.5, {}); d.lvl = 3;
+  const ward = i => d.page.evaluate(i => { const w = __g.G.ents.filter(e => e.type === 'warden')[i]; return { x: +(w.x / 32).toFixed(1), st: w.st, dir: w.dir }; }, i);
+  const waitFor = async (fn, max = 60, keys = {}) => { for (let i = 0; i < max * 30; i++) { if (await fn()) return true; await d.tick(keys); } log('WAIT TIMEOUT'); return false; };
+  await d.go(7); await d.act();
+  await d.go(11.4); await d.talk(30); await d.go(11.6); await d.act(); await d.run(1.2, {}); await d.shot('31-lure');
+  let s;
+  for (const j of [13.3, 17.3, 21.3, 25.3, 29.3]) { await d.go(j + 3.2, { jumps: [j] }); s = await d.state(); if (s.dying) log('died at', j); }
+  await d.shot('32-pool');
+  await d.go(36.6, { jumps: [33.3] }); s = await d.state(); log('pool crossed', s.tx, s.ty, s.cp);
+  await d.go(38); s = await d.talk(30); log('page', s.pages); await d.go(41); await d.act();
+  await d.go(45.3); await d.act(); await d.go(47); await d.climb(-1, 12.95); await d.go(52);
+  await waitFor(async () => (await ward(0)).st === 'snuffing', 80); log('warden1', await ward(0)); await d.shot('33-warden-lured');
+  await d.go(62); await d.go(66.6); await d.run(0.8, {}); s = await d.talk(20); await d.shot('34-mural'); log('mural read at', s.tx, 'dying', s.dying);
+  await d.go(81); await d.act(); s = await d.state(); log('lamp cp', s.cp, 'at', s.tx);
+  await d.go(84.2); await d.act(); await d.shot('35-brine'); s = await d.talk(90); log('brine', s.flags.includes('metBrine'));
+  await d.go(94); await d.act(); await d.run(0.3, {});
+  await d.go(100); await d.act(); await d.run(0.3, {}); await d.act(); await d.run(0.3, {});
+  s = await d.state(); log('drained flag', s.flags.includes('drained'));
+  await d.run(5.5, {}); await d.shot('36-drained');
+  await d.go(111, { tol: 14 }); s = await d.talk(40); log('basin page', s.pages, 'at', s.tx, s.ty);
+  await d.go(127, { jumps: [117.5, 120.4, 123.9] }); s = await d.state(); log('out of basin', s.tx, s.ty);
+  if (s.lit) await d.hood();
+  await waitFor(async () => { const w = await ward(1); return w.dir === 1 && w.x > 134; }, 90); 
+  await d.go(129); await d.climb(-1, 12.95); await d.go(142.5, { jumps: [136.2] }); s = await d.state(); log('catwalk', s.tx, s.ty);
+  await d.shot('37-catwalk');
+  await waitFor(async () => { const w = await ward(1); return w.dir === -1 && w.x < 138; }, 90);
+  await d.go(152); await d.act(); s = await d.state(); log('last lamp', s.cp, s.tx, s.ty, 'dying', s.dying);
+  await d.go(156); await d.act(); await d.run(6, {}); s = await d.state(); log('next', s.n, s.mode);
+  log('errors', d.errors.slice(0, 5));
+  d.done(); await d.browser.close();
+})();
